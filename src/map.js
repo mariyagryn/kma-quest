@@ -11,8 +11,8 @@ const MAP_POINTS = [
   { id: "girkyi",  name: "Гіркий",                   x: 390,  y: 205, cafe: "#5a3b22" },
   { id: "puzatka", name: "Пузатка",                  x: 900,  y: 600, cafe: "#a8770a" },
   { id: "kfs",     name: "КФС / Сільпо",             x: 1175, y: 390, cafe: "#c2452d" },
-  { id: "stand2",  name: "Стенд СО: Студентське медіа", x: 900, y: 445, stand: true },
-  { id: "stand4",  name: "Стенд СО: Волонтерський хаб", x: 470, y: 630, stand: true }
+  { id: "stand2", name: "Стенд СО: KMA Today", x: 900, y: 445, stand: true },
+  { id: "stand4", name: "Стенд СО: Взаємодопомога", x: 470, y: 630, stand: true }
 ];
 MAP_POINTS.forEach(p => {
   if (p.bw) { p.rect = [p.x - p.bw / 2, p.y - p.bh / 2, p.bw, p.bh]; p.tx = p.x; p.ty = p.y + p.bh / 2 + 22; }

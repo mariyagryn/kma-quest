@@ -47,7 +47,7 @@ async function titleScreen() {
         <p>Перші дні першокурсника в Києво-Могилянській академії: пролог, чотири глави і фінал. Ти знайомишся з бадді, старостою, кампусом, історією Академії, деканатом і САЗом.</p>
         <ul><li>Програти неможливо: після помилки персонаж пояснить правильну відповідь.</li><li>Бали: +10 за відповідь з першої спроби, +5 з наступної. Максимум — 380.</li><li>Гра зберігається автоматично після кожної завершеної сцени.</li></ul>
         <p><b>Керування:</b> миша; <kbd>Пробіл</kbd>/<kbd>Enter</kbd> — далі; <kbd>1</kbd>–<kbd>3</kbd> — вибір відповіді; на карті <kbd>WASD</kbd>/стрілки та <kbd>E</kbd> — увійти.</p>
-        <p class="sub">Історичні дати звірено з джерелами НаУКМА; розклад, курси та кредити умовні. Назви СОшок вигадані.</p></div>`);
+        <p class="sub">Історичні дати звірено з джерелами НаУКМА; розклад, курси та кредити умовні. Назви студентських організацій справжні, а ситуації у грі художньо змодельовані.</p></div>`);
       $(".close", v).onclick = () => closeLayer(v);
     };
   });
@@ -173,7 +173,7 @@ function ch1Tasks() {
   setTasks("Глава 1 · справи на сьогодні", [
     { id: "chat", label: "Додатися в чатик групи і розібрати сленг", sub: "міні-гра «Сленг-перекладач»", done: T("ch1_chat"), click: true },
     { id: "dana", label: "Знайти старосту Дану", sub: "особистий чат", done: T("ch1_dana"), click: true },
-    { id: "stand", label: "Стенд СО на площі: Дебатний клуб", opt: true, done: S.stamps.includes("debate"), click: true }
+    { id: "stand", label: "Стенд СО на площі: Дебатний клуб НаУКМА", opt: true, done: S.stamps.includes("debate"), click: true }
   ], "Справи можна робити в будь-якому порядку.");
 }
 async function ch1Intro() {
@@ -240,7 +240,7 @@ async function ch1Hub() {
   }
   ch1Tasks();
   if (!S.stamps.includes("debate")) {
-    const r = await choose(["Зазирну до стенду СО", "Йдемо далі"], { who: "maryana", text: "Усе зроблено! Біля входу ще стоїть стенд Дебатного клубу. Зазирнеш чи йдемо далі?" });
+    const r = await choose(["Зазирну до стенду СО", "Йдемо далі"], { who: "maryana", text: "Усе зроблено! Біля входу ще стоїть стенд Дебатного клубу НаУКМА. Зазирнеш чи йдемо далі?" });
     if (r.i === 0) await standVisit(debateClub);
   }
   await say("maryana", "Тепер ти говориш могилянською! Далі — кампус. Тримай карту.", { emo: "happy", voice: "maryana_04" });
@@ -289,7 +289,7 @@ function ch2Tasks() {
     { id: "s", label: "Як читати розклад", sub: "3-й корпус", done: T("ch2_sched") },
     { id: "r", label: "Перша лекція: знайти аудиторію", sub: T("ch2_sched") ? "КМЦ, ауд. " + DATA.targetRoom : "спершу розклад", done: T("ch2_room") },
     { id: "h", label: "Кава між парами", sub: T("ch2_hunt_started") ? `знайдено ${h} з 3 · фото ${Math.min(h + 1, 3)}` : "зайди в будь-яке кафе на карті", done: T("ch2_hunt"), click: T("ch2_hunt_started") && !T("ch2_hunt") },
-    { id: "st", label: "Стенд СО: Студентське медіа", opt: true, done: S.stamps.includes("media") }
+    { id: "st", label: "Стенд СО: KMA Today", opt: true, done: S.stamps.includes("media") }
   ], T("ch2_hunt_started") && !T("ch2_hunt") ? "Натисни «Кава між парами», щоб знову побачити фото." : "Завдання — у будь-якому порядку. Точки з «!» активні.");
 }
 async function ch2() {
@@ -314,7 +314,7 @@ async function ch2() {
   ch2Tasks();
   if (!S.stamps.includes("media")) {
     MapView.show(ch2State, { from });
-    const r = await choose(["Зайду до стенду", "Ні, далі"], { who: "maryana", text: "Головне зроблено! Стенд Студентського медіа ще стоїть на площі. Зазирнеш?", sprite: false });
+    const r = await choose(["Зайду до стенду", "Ні, далі"], { who: "maryana", text: "Головне зроблено! Стенд KMA Today ще стоїть на площі. Зазирнеш?", sprite: false });
     hideDialog();
     if (r.i === 0) await standVisit(mediaClub);
   }
@@ -431,7 +431,7 @@ function ch3Tasks() {
     { id: "tl", label: "Стрічка часу", sub: "5 подій по порядку", done: T("ch3_tl"), click: true },
     { id: "q", label: "Квіз «Символи Могилянки»", sub: "4 питання від Сковороди", done: T("ch3_quiz"), click: true },
     { id: "v", label: "Переглянути «400 років за 90 секунд»", sub: "можна пропустити", opt: true, click: true },
-    { id: "stand", label: "Стенд СО: Історичний клуб", opt: true, done: S.stamps.includes("history"), click: true }
+    { id: "stand", label: "Стенд СО: Спудейське братство", opt: true, done: S.stamps.includes("history"), click: true }
   ]);
 }
 async function ch3() {
@@ -468,7 +468,7 @@ async function ch3Hub() {
   }
   ch3Tasks();
   if (!S.stamps.includes("history")) {
-    const r = await choose(["Подивлюсь стенд", "Ні, дякую"], { who: "skovoroda", text: "У кутку двору стоїть стенд Історичного клубу. Глянете, поки я не зник?" });
+    const r = await choose(["Подивлюсь стенд", "Ні, дякую"], { who: "skovoroda", text: "У кутку двору стоїть стенд Спудейського братства. Глянете, поки я не зник?" });
     if (r.i === 0) await standVisit(histClub);
   }
   hideTasks();
@@ -504,7 +504,7 @@ function ch4Tasks() {
     { id: "inp", label: "Деканат: ЄКТС і ІНП", sub: "Деканат на карті", done: T("ch4_inp") },
     { id: "saz", label: "САЗ: запис на дисципліни", sub: T("ch4_inp") ? "натисни, щоб відкрити САЗ на ноутбуці" : "спершу склади ІНП", done: T("ch4_saz"), click: T("ch4_inp") && !T("ch4_saz") },
     { id: "lib", label: "Бібліотека: знайди книгу", sub: T("ch4_catalog") ? "шифр " + DATA.book.code + " · Бібліотека №2" : "будь-яка бібліотека на карті", done: T("ch4_lib") },
-    { id: "st", label: "Стенд СО: Волонтерський хаб", opt: true, done: S.stamps.includes("volunteer") }
+    { id: "st", label: "Стенд СО: Взаємодопомога", opt: true, done: S.stamps.includes("volunteer") }
   ], "САЗ відкривається після ІНП. Бібліотека — у будь-який момент.");
 }
 async function ch4() {
@@ -528,7 +528,7 @@ async function ch4() {
   ch4Tasks();
   if (!S.stamps.includes("volunteer")) {
     MapView.show(ch4State, { from });
-    const r = await choose(["Зайду до стенду", "Ні, далі"], { who: "maryana", text: "Ти все встиг! Біля Волоської ще стоїть стенд Волонтерського хабу. Зазирнеш?", sprite: false });
+    const r = await choose(["Зайду до стенду", "Ні, далі"], { who: "maryana", text: "Ти все встиг! Біля Волоської ще стоїть стенд «Взаємодопомоги від НаУКМА». Зазирнеш?", sprite: false });
     hideDialog();
     if (r.i === 0) await standVisit(volClub);
   }

@@ -291,7 +291,7 @@ function openNotebook(fromTitle = false) {
   const render = cat => {
     if (cat === "community") {
       body.innerHTML = `<p class="sub">Штампи СОшок: по одному стенду в кожній главі. Відвідування необов'язкове, але кожен штамп — це +10 балів.</p>
-        <div class="stamps">${DATA.clubs.map(c => nb.stamps.includes(c.id) ? `<div class="stamp on"><span><b>${esc(c.short)}</b>${esc(c.name.split("«")[1] ? "«" + c.name.split("«")[1] : "")}</span></div>` : `<div class="stamp"><span>Глава ${c.ch}<br>стенд СО</span></div>`).join("")}</div>`;
+        <div class="stamps">${DATA.clubs.filter(c => c.ch !== null).map(c => nb.stamps.includes(c.id) ? `<div class="stamp on"><span><b>${esc(c.short)}</b>${esc(c.name.split("«")[1] ? "«" + c.name.split("«")[1] : "")}</span></div>` : `<div class="stamp"><span>Глава ${c.ch}<br>стенд СО</span></div>`).join("")}</div>`;
       return;
     }
     const items = nb.glossary.filter(g => g.cat === cat);
