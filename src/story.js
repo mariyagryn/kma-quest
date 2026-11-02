@@ -18,7 +18,7 @@ function gate() {
   });
 }
 async function titleScreen() {
-  setBg("title"); hideNPC(); hideDialog(); hideTasks(); showHUD(false); MapView.hide();
+  setBg("title_test"); hideNPC(); hideDialog(); hideTasks(); showHUD(false); MapView.hide();
   Sound.startMusic("theme_main"); Sound.stopAmb();
   const saved = loadSave(), nb = storeGet(NB_KEY);
   const ui = document.createElement("div"); ui.className = "title-ui";
@@ -27,7 +27,7 @@ async function titleScreen() {
       <button class="btn ${saved && saved.scene !== "prologue" ? "ghost" : "gold"}" id="tNew">Почати гру</button>
       ${nb && nb.glossary && nb.glossary.length ? `<button class="btn ghost" id="tNb">Нотатник фреша</button>` : ""}
       <button class="btn ghost" id="tAbout">Про гру</button></div>
-    <div class="foot">Візуальна новела + point-and-click · Поділ, Київ · без програшу: помилка — це підказка</div>`;
+    <div class="foot">Твоя історія в Могилянці починається тут!</div>`;
   $("#stage").appendChild(ui);
   return new Promise(res => {
     const c = $("#tContinue", ui);
@@ -668,7 +668,7 @@ async function boot() {
   fit(); requestAnimationFrame(bgLoop);
   $("#snd").onclick = () => { Sound.setEnabled(!Sound.enabled); updateHUD(); };
   $("#nbBtn").onclick = () => openNotebook();
-  setBg("title");
+  setBg("title_test");
   try { await document.fonts.ready; } catch (e) {}
   if (!TEST) await gate(); else Sound.init();
   while (true) {
