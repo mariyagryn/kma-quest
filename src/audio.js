@@ -252,22 +252,40 @@ const Sound = (() => {
   }
   function playFile(url, vol = 1) { try { const a = new Audio(url); a.volume = vol; a.play().catch(() => {}); return a; } catch (e) { return null; } }
   function loopFile(url, vol) { const a = playFile(url, vol); if (a) a.loop = true; return a; }
-  let voiceEl = null;
-  function voice(id) {
+  let voiceEl = null, vq = [], pendingId = null, vtok = 0;
+  /** voice(id) — одразу (зупиняє попереднє); voice(id, {queue:true}) — після поточного. */
+  function voice(id, opts) {
     if (!enabled || !id) return;
-    stopVoice();
-    const url = "assets/voice/" + id + ".mp3";
-    if (fileOk[url] === false) return;
-    probe(url, ok => { if (ok && enabled) voiceEl = playFile(url, 1); });
+    const busy = pendingId || vq.length || (voiceEl && !voiceEl.paused && !voiceEl.ended);
+    if (opts && opts.queue && busy) { vq.push(id); return; }
+    stopVoice(); playNow(id);
   }
-  function stopVoice() { if (voiceEl) { voiceEl.pause(); voiceEl = null; } }
+  function playNow(id) {
+    const url = "assets/voice/" + id + ".mp3", tok = ++vtok;
+    if (fileOk[url] === false) { nextVoice(); return; }
+    pendingId = id;
+    probe(url, ok => {
+      if (tok !== vtok) return; pendingId = null;
+      if (!ok || !enabled) { nextVoice(); return; }
+      try {
+        const a = new Audio(url); a.volume = 1; a._id = id; voiceEl = a;
+        a.onended = () => { if (tok === vtok) nextVoice(); };
+        a.play().catch(() => { if (tok === vtok) nextVoice(); });
+      } catch (e) { nextVoice(); }
+    });
+  }
+  function nextVoice() { if (vq.length) playNow(vq.shift()); }
+  function stopVoice() { vq = []; pendingId = null; vtok++; if (voiceEl) { voiceEl.pause(); voiceEl = null; } }
+  function voiceQueued(id) { return pendingId === id || vq.includes(id); }
   function hasVoice(id) { return fileOk["assets/voice/" + id + ".mp3"] === true; }
+  function voiceState(id) { return fileOk["assets/voice/" + id + ".mp3"]; }
+  function voiceAudio() { return voiceEl; }
  
   function setEnabled(v) {
     enabled = v;
     if (!v) { const m = music && music.name, a = amb && amb.name; stopMusic(); stopAmb(); stopVoice(); music = m ? { name: m, off: true } : null; amb = a ? { name: a, off: true } : null; }
     else { init(); const m = music && music.name, a = amb && amb.name; music = null; amb = null; if (m) startMusic(m); if (a) startAmb(a); }
   }
-  return { init, sfx, blip, startMusic, stopMusic, startAmb, stopAmb, voice, stopVoice, hasVoice, setEnabled, get enabled() { return enabled; }, tone, noise };
+  return { init, sfx, blip, startMusic, stopMusic, startAmb, stopAmb, voice, stopVoice, hasVoice, voiceState, voiceAudio, voiceQueued, setEnabled, get enabled() { return enabled; }, tone, noise };
 })();
  
