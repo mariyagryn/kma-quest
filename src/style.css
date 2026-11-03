@@ -354,6 +354,10 @@ a.btn{text-decoration:none;justify-content:center}
 .saz .chatpop{position:absolute;right:20px;bottom:20px;width:330px;background:#fff;border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.25);padding:10px;display:flex;flex-direction:column;gap:6px;max-height:330px;overflow:hidden}
 .saz .chatpop .h{font-size:12px;font-weight:800;color:var(--muted);padding:2px 4px}
 .saz .chatpop .msg{max-width:95%}
+.saz .chatpop.docked{position:static;width:auto;max-height:none;box-shadow:none;border:1px solid #dfe3ec;margin:0 0 12px;flex-direction:row;flex-wrap:wrap;align-items:flex-start}
+.saz .chatpop.docked .h{width:100%}
+.saz .chatpop.docked .msg{max-width:none;flex:1 1 200px}
+.saz .chatpop.docked .msg:not(:last-child){display:none}
  
 /* library */
 .catalog{width:900px;padding:26px 30px}

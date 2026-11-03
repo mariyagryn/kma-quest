@@ -15,6 +15,7 @@ function phoneOpen({ title, sub = "", av = "" }) {
       m.className = "msg" + (o.me ? " me" : "") + (o.sys ? " sys" : "") + (o.sticker ? " sticker" : "");
       m.innerHTML = (o.from && !o.me ? `<span class="n">${esc(o.from)}</span>` : "") + esc(tpl(text));
       msgs.appendChild(m); msgs.scrollTop = msgs.scrollHeight;
+      if (!o.me && !o.sys && !o.sticker) { const who = Object.keys(DATA.npc).find(k => DATA.npc[k].name === o.from) || ("chat:" + (o.from || "")); Sound.voice(voFor(who, text), { queue: true }); }
       if (!o.me && !o.sys && !o.silent) Sound.sfx("notif");
       return m;
     },
@@ -72,7 +73,8 @@ function panelQuiz(root, items, { who, keyPrefix, onDone, qSel = ".qz" }) {
       const it = items[qi]; let tries = 0;
       box.innerHTML = `<div class="quiz" style="width:auto;padding:0"><div class="prog">${items.map((_, i) => `<i class="${i <= qi ? "on" : ""}"></i>`).join("")}</div>
         <div class="q">${esc(tpl(it.q))}</div><div class="opts">${it.o.map((o, i) => `<button data-i="${i}" ${TEST && i === it.a ? 'data-ok="1"' : ""}><kbd>${i + 1}</kbd>${esc(o)}</button>`).join("")}</div><div class="feedback"></div></div>`;
-      const fb = $(".feedback", box);
+      const fb = $(".feedback", box), qEl = $(".q", box), qid = voFor(who || null, it.q);
+      Sound.voice(qid, { queue: true }); typeInto(qEl, tpl(it.q), null, qid);
       $$(".opts button", box).forEach(b => b.addEventListener("click", () => {
         const i = +b.dataset.i;
         if (i === it.a) {
@@ -99,7 +101,6 @@ async function scheduleTask() {
     <table><thead><tr><th>День</th><th>Час</th><th>Дисципліна</th><th>Тип</th><th>Тижні</th><th>Аудиторія</th></tr></thead>
     <tbody>${DATA.schedule.map(r => `<tr><td class="d">${r.d}</td><td>${r.t}</td><td>${esc(r.c)}</td><td>${r.k}</td><td class="wk">${r.w}</td><td><b>${r.r}</b></td></tr>`).join("")}</tbody></table></div>
     <div class="side">${hintBox("maryana", "У КМА аудиторія записується як корпус-номер. Бачиш стовпець «тижні»? Деякі семінари йдуть не щотижня.")}<div class="qz"></div></div></div>`);
-  Sound.voice("maryana_sched");
   await panelQuiz(v, DATA.scheduleQuiz, { who: "maryana", keyPrefix: "ch2_sched_" });
   addWord("schedule", "Мій розклад", "", "facts", { wide: true, html: `<table style="width:100%;font-size:13px;border-collapse:collapse">${DATA.schedule.map(r => `<tr><td><b>${r.d}</b></td><td>${r.t}</td><td>${esc(r.c)} (${r.k})</td><td>${r.w}</td><td><b>${r.r}</b></td></tr>`).join("")}</table>` });
   await sleep(500);
@@ -157,9 +158,13 @@ function showHuntPhoto(i) {
     const h = DATA.hunt[i];
     const v = openLayer(`<div class="panel photo"><div class="eyebrow">Кава між парами · ${h.title}</div><h2>Де зроблено це фото?</h2>
       <p class="sub">${esc(h.hint)} Знайди це місце на карті й зайди туди.</p><canvas width="660" height="370"></canvas>
-      <div style="margin-top:14px;display:flex;justify-content:flex-end"><button class="btn gold" id="go">Шукати на карті</button></div></div>`);
+      <div style="margin-top:14px;display:flex;justify-content:flex-end"><button class="btn gold" id="go">Шукати на карті</button><span style="align-self:center;margin-left:12px;font-size:12px;opacity:.6">або натисни стрілку / WASD / Esc</span></div></div>`);
     drawPhoto($("canvas", v).getContext("2d"), h.id);
-    $("#go", v).addEventListener("click", () => { Sound.sfx("click"); closeLayer(v); res(); });
+    const MOVE = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "w", "a", "s", "d", "ц", "ф", "і", "в", "ы", "Escape"];
+    let closed = false;
+    const go = () => { if (closed) return; closed = true; pop(); Sound.sfx("click"); closeLayer(v); res(); };
+    const pop = pushKeys(e => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; if (MOVE.includes(k)) { go(); return k === "Escape"; } });
+    $("#go", v).addEventListener("click", go);
   });
 }
 function huntStory(i) {
@@ -283,10 +288,12 @@ function sazGame() {
       main.innerHTML = bar(0) + `<div class="login"><b>Вхід до САЗ</b><label class="field"><label for="sz_l">Логін</label><input id="sz_l" value="${esc(login)}@ukma.edu.ua" readonly></label>
         <label class="field"><label for="sz_p">Пароль</label><input id="sz_p" type="password" value="••••••••" readonly></label><button class="btn" id="sz_in">Увійти</button></div>`;
       $("#sz_in", main).onclick = () => { Sound.sfx("click"); stepSem(); };
+      Sound.voice(voFor(null, "Вхід до САЗ. Натисни «Увійти»."), { queue: true });
     }
     function stepSem() {
       main.innerHTML = bar(1) + `<div class="login"><b>Оберіть семестр</b><select id="sz_s"><option>Осінній семестр 2026/2027</option></select><button class="btn" id="sz_n">Далі</button></div>`;
       $("#sz_n", main).onclick = () => { Sound.sfx("click"); stepCourses(); };
+      Sound.voice(voFor(null, "Оберіть семестр і натисніть «Далі»."));
     }
     function credits() { return DATA.mandatory.reduce((a, b) => a + b.cr, 0) + enrolled.reduce((a, id) => a + byId[id].cr, 0); }
     let triedFull = false, chatPop = null;
@@ -302,18 +309,21 @@ function sazGame() {
     function stepCourses(msg = "") {
       const listIds = paniced ? all.map(c => c.id) : plan;
       const ok = TEST ? okId() : null;
-      main.innerHTML = bar(2) + `<p style="margin:0 0 10px">${paniced ? "Додайте запасний курс із такою ж кількістю кредитів, як у курсу без місць." : "Додайте дисципліни зі свого ІНП."} Зараз у плані: <b>${credits()} / 30</b> кр.</p>
+      const hintTxt = paniced ? "Додайте запасний курс із такою ж кількістю кредитів, як у курсу без місць." : "Додайте дисципліни зі свого ІНП.";
+      if (stepCourses._said !== hintTxt) { stepCourses._said = hintTxt; Sound.voice(voFor(null, hintTxt), { queue: true }); }
+      main.innerHTML = bar(2) + `<p style="margin:0 0 10px">${paniced ? `Додайте запасний курс із такою ж кількістю кредитів, як у курсу без місць: «${esc(byId[fullId].c)}» — <b>${fullCr()} кр.</b>` : "Додайте дисципліни зі свого ІНП."} Зараз у плані: <b>${credits()} / 30</b> кр.</p>
+        <div class="feedback ${msg ? "bad" : ""}" style="margin:0 0 10px">${esc(msg)}</div>
         <table><thead><tr><th>Дисципліна</th><th>Кредити</th><th>Місця</th><th></th></tr></thead><tbody>
         ${listIds.map(id => { const c = byId[id], isFull = id === fullId && triedFull, isIn = enrolled.includes(id);
           const seats = isFull ? '<span class="full">Місць немає (0/25)</span>' : (9 + (id.length * 5 + c.cr * 3) % 14) + "/25";
           const tag = plan.includes(id) ? ' <small style="color:#56607a">· з ІНП</small>' : "";
           const act = isIn ? '<span class="in">✓ записано</span>' : isFull ? "" : `<button class="sbtn" data-id="${id}" ${ok === id ? 'data-ok="1"' : ""}>Записатися</button>`;
           return `<tr><td>${esc(c.c)}${tag}</td><td>${c.cr}</td><td>${seats}</td><td>${act}</td></tr>`; }).join("")}
-        </tbody></table><div class="feedback ${msg ? "bad" : ""}">${esc(msg)}</div>
+        </tbody></table>
         ${credits() === 30 && triedFull ? `<div style="margin-top:12px"><button class="btn gold" id="sz_c" data-ok="1">Підтвердити запис</button></div>` : ""}`;
       $$(".sbtn", main).forEach(b => b.onclick = () => enroll(b.dataset.id));
       const c = $("#sz_c", main); if (c) c.onclick = () => stepConfirm();
-      if (chatPop) main.appendChild(chatPop);
+      if (chatPop) { if (paniced) { chatPop.classList.add("docked"); main.insertBefore(chatPop, $("table", main)); } else main.appendChild(chatPop); }
     }
     async function enroll(id) {
       Sound.sfx("click");
@@ -331,7 +341,7 @@ function sazGame() {
       chatPop = document.createElement("div"); chatPop.className = "chatpop";
       chatPop.innerHTML = `<div class="h">${esc(tpl("{faculty} 1 курс 🔥"))}</div>`;
       main.appendChild(chatPop);
-      const add = (from, t) => { const m = document.createElement("div"); m.className = "msg"; m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`; chatPop.appendChild(m); Sound.sfx("notif"); while (chatPop.children.length > 6) chatPop.children[1].remove(); };
+      const add = (from, t) => { const m = document.createElement("div"); m.className = "msg"; m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`; chatPop.appendChild(m); Sound.sfx("notif"); while (chatPop.children.length > 6) chatPop.children[1].remove(); Sound.voice(voFor(/^Дана/.test(from) ? "dana" : "chat:" + from, t), { queue: true }); };
       add("Остап", "ЛЮДИ САЗ ЛІГ"); await sleep(900);
       add("Ліза", "в мене «" + byId[fullId].c + "» 0 місць 😭😭"); await sleep(900);
       add("Тарас", "все, відрахування"); await sleep(1100);
@@ -345,7 +355,7 @@ function sazGame() {
       $("#sz_f", main).onclick = async () => {
         S.saz = { enrolled: enrolled.slice(), replaced, full: fullId };
         main.innerHTML = `<div style="display:grid;place-items:center;height:100%;text-align:center"><div><div style="font-size:64px">✅</div><h2>Запис успішний</h2><p class="sub">Урок: завжди мати запасний варіант і заходити в САЗ вчасно.</p></div></div>`;
-        confetti(2500); Sound.sfx("ok"); award("ch4_saz", 20);
+        confetti(2500); Sound.sfx("ok"); award("ch4_saz", 20); Sound.voice(voFor(null, "Запис успішний. Урок: завжди мати запасний варіант і заходити в САЗ вчасно."));
         await sleep(2300); closeLayer(v); res();
       };
     }
@@ -400,12 +410,27 @@ function standVisit(club) {
     const media = $("#media", v);
     let stopMedia = () => {};
     if (club.media === "audio") {
-      media.innerHTML = `<canvas width="760" height="260"></canvas><div class="cap"></div>`;
-      const ctx = $("canvas", media).getContext("2d"), cap = $(".cap", media);
-      const lines = [[0, "— Шановна колегіє, я стверджую, що пари о 8:30 — це злочин проти людства."], [5, "— Опонентко, а ви бачили, як порожніє черга в Гіркому о 8:15?"], [10, "— Час! Судді, ваш вердикт."]];
+      media.innerHTML = `<canvas width="760" height="260" style="cursor:pointer" title="Натисніть, щоб прослухати ще раз"></canvas><div class="cap"></div>`;
+      const cv = $("canvas", media), ctx = cv.getContext("2d"), cap = $(".cap", media);
+      const lines = club.voiceLines || [[0, "— Шановна колегіє, я стверджую, що пари о 8:30 — це злочин проти людства."], [5, "— Опонентко, а ви бачили, як порожніє черга в Гіркому о 8:15?"], [10, "— Час! Судді, ваш вердикт."]];
+      const DUR = club.voiceDur || 15, fmt = x => "0:" + String(Math.floor(x)).padStart(2, "0");
+      const play = () => { if (club.voice) Sound.voice(club.voice); };
+      play(); cv.addEventListener("click", play);
       const t0 = performance.now(); let run = true;
-      (function f(now) { if (!run) return; const t = (now - t0) / 1000 % 15; ctx.fillStyle = "#141b2e"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#d9a21b"; for (let i = 0; i < 76; i++) { const a = Math.abs(Math.sin(i * 0.7 + t * 6) * Math.sin(i * 0.13 + t)) * 90 + 4; ctx.fillRect(10 + i * 10, 110 - a / 2, 6, a); } ctx.fillStyle = "#f7f4ee"; ctx.font = "700 13px Manrope, sans-serif"; ctx.fillText("▶ аудіо · 0:" + String(Math.floor(t)).padStart(2, "0") + " / 0:15", 14, 24); const L = [...lines].reverse().find(l => t >= l[0]); cap.textContent = L[1]; if (Math.floor(t * 8) % 2 === 0) Sound.blip(t < 5 || t >= 10 ? 1.1 : 0.85); requestAnimationFrame(f); })(t0);
-      stopMedia = () => run = false;
+      (function f(now) {
+        if (!run) return;
+        const st = club.voice ? Sound.voiceState(club.voice) : false, au = st === true ? Sound.voiceAudio() : null;
+        const real = !!au, playing = real ? !au.paused && !au.ended : st !== undefined;
+        const t = real ? au.currentTime : (now - t0) / 1000 % DUR, anim = (now - t0) / 1000;
+        ctx.fillStyle = "#141b2e"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#d9a21b";
+        for (let i = 0; i < 76; i++) { const a = (playing ? Math.abs(Math.sin(i * 0.7 + anim * 6) * Math.sin(i * 0.13 + anim)) * 90 : 2) + 4; ctx.fillRect(10 + i * 10, 110 - a / 2, 6, a); }
+        ctx.fillStyle = "#f7f4ee"; ctx.font = "700 13px Manrope, sans-serif";
+        ctx.fillText(real && !playing ? "↻ натисніть, щоб прослухати ще раз" : "▶ аудіо · " + fmt(t) + " / " + fmt(DUR), 14, 24);
+        const L = [...lines].reverse().find(l => t >= l[0]) || lines[0]; cap.textContent = L[1];
+        if (!real && st === false && Math.floor(anim * 8) % 2 === 0) Sound.blip(t < lines[1][0] || t >= lines[2][0] ? 1.1 : 0.85);
+        requestAnimationFrame(f);
+      })(t0);
+      stopMedia = () => { run = false; if (club.voice) Sound.stopVoice(); };
     } else if (club.media === "video") {
       media.innerHTML = `<canvas width="760" height="260"></canvas><div class="cap"></div>`;
       const ctx = $("canvas", media).getContext("2d"), cap = $(".cap", media);

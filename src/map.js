@@ -24,7 +24,7 @@ const MapView = (() => {
   const cv = () => $("#map");
   let active = false, stateFn = () => "normal", resolver = null;
   let hero = { x: 640, y: 430, dir: "down", phase: 0, moving: false }, target = null, autoEnter = null;
-  const keys = {};
+  const keys = {}; const tapped = {};
   let near = null, lastStep = 0, last = 0, dusk = 0, avatar = 0, insideLock = null;
   let promptEl = null, helpEl = null;
  
@@ -89,9 +89,11 @@ const MapView = (() => {
     // movement
     let dx = 0, dy = 0;
     const uiBusy = $("#layer").childElementCount > 0 || !$("#dialog").hidden || !resolver;
-    if (uiBusy) { Object.keys(keys).forEach(k => keys[k] = false); target = target && resolver ? target : null; }
-    if (keys.ArrowLeft || keys.a || keys.ф) dx -= 1; if (keys.ArrowRight || keys.d || keys.в) dx += 1;
-    if (keys.ArrowUp || keys.w || keys.ц) dy -= 1; if (keys.ArrowDown || keys.s || keys.і || keys.ы) dy += 1;
+    if (uiBusy) { Object.keys(keys).forEach(k => keys[k] = false); for (const k in tapped) delete tapped[k]; target = target && resolver ? target : null; }
+    const K = k => keys[k] || tapped[k];
+    if (K("ArrowLeft") || K("a") || K("ф")) dx -= 1; if (K("ArrowRight") || K("d") || K("в")) dx += 1;
+    if (K("ArrowUp") || K("w") || K("ц")) dy -= 1; if (K("ArrowDown") || K("s") || K("і") || K("ы")) dy += 1;
+    for (const k in tapped) delete tapped[k];
     if (dx || dy) { target = null; autoEnter = null; }
     else if (target) { const vx = target.x - hero.x, vy = target.y - hero.y, d = Math.hypot(vx, vy); if (d < 4) { target = null; if (autoEnter) { const id = autoEnter; autoEnter = null; enter(id); return; } } else { dx = vx / d; dy = vy / d; } }
     hero.moving = !!(dx || dy);
@@ -146,7 +148,7 @@ const MapView = (() => {
     if (e.type === "keydown") {
       if ($("#layer").childElementCount > 0) return;
       if ((k === "e" || k === "у" || k === "Enter" || k === " ") && near && resolver) { enter(near.id); e.preventDefault(); return; }
-      keys[k] = true; if (k.startsWith("Arrow")) e.preventDefault();
+      keys[k] = true; tapped[k] = true; if (k.startsWith("Arrow")) e.preventDefault();
     } else keys[k] = false;
   }
   addEventListener("keydown", onKey); addEventListener("keyup", onKey);
@@ -167,7 +169,7 @@ const MapView = (() => {
       if (!c._bound) { c.addEventListener("click", onClick); c._bound = true; }
       if (!promptEl) { promptEl = document.createElement("div"); promptEl.className = "mapprompt"; promptEl.hidden = true; $("#stage").appendChild(promptEl); helpEl = document.createElement("div"); helpEl.className = "maphelp"; helpEl.textContent = "WASD / стрілки — ходити · клік — іти до точки · E — увійти"; $("#stage").appendChild(helpEl); }
       helpEl.hidden = false;
-      if (opts.from) { const p = MAP_POINTS.find(p => p.id === opts.from); if (p) { hero.x = p.tx; hero.y = p.ty + 6; hero.dir = "down"; insideLock = p.id; } }
+      if (opts.from) { const p = MAP_POINTS.find(p => p.id === opts.from); if (p) { hero.x = p.tx; hero.y = p.ty + 6; for (let k = 0; k < 12 && (blocked(hero.x - 14, hero.y) || blocked(hero.x + 14, hero.y)); k++) hero.y += 4; hero.dir = "down"; insideLock = p.id; } }
       if (!active) { active = true; last = performance.now(); requestAnimationFrame(frame); }
       renderPrompt();
     },
@@ -177,6 +179,8 @@ const MapView = (() => {
     set dusk(v) { dusk = v; },
     get hero() { return hero; },
     get isActive() { return active; },
+    get waiting() { return !!resolver; },
+    stateOf(id) { return stateFn ? stateFn(id) : null; },
     enterForTest(id) { if (resolver) { const r = resolver; resolver = null; insideLock = id; r(id); } },
     prerender() { return staticLayer(); },
     reset() { hero = { x: 640, y: 430, dir: "down", phase: 0, moving: false }; }
