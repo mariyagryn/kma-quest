@@ -402,6 +402,19 @@ function shelvesGame() {
 }
  
 /* ---------- Стенди СО ---------- */
+// трек картки: перший раз — у черзі після опису стенду, клік — заново одразу
+function standTrack(club, cv) {
+  const st = { started: false };
+  if (club.voice) { Sound.voice(club.voice, { queue: true }); cv.addEventListener("click", () => Sound.voice(club.voice)); }
+  st.get = () => {
+    if (!club.voice || !Sound.enabled) return { real: false, playing: true, t: null };
+    const au = Sound.voiceAudio(), mine = au && au._id === club.voice;
+    if (mine) st.started = true;
+    if (!mine) return { real: st.started, playing: false, waiting: !st.started && Sound.voiceQueued(club.voice), t: st.started ? Infinity : 0 };
+    return { real: true, playing: !au.paused && !au.ended, t: au.currentTime };
+  };
+  return st;
+}
 function standVisit(club) {
   return new Promise(res => {
     const done = S.stamps.includes(club.id);
@@ -409,43 +422,53 @@ function standVisit(club) {
       <div class="media" id="media"></div><div class="qz"></div></div>`);
     const media = $("#media", v);
     let stopMedia = () => {};
+    const fmt = x => "0:" + String(Math.floor(x)).padStart(2, "0");
     if (club.media === "audio") {
       media.innerHTML = `<canvas width="760" height="260" style="cursor:pointer" title="Натисніть, щоб прослухати ще раз"></canvas><div class="cap"></div>`;
       const cv = $("canvas", media), ctx = cv.getContext("2d"), cap = $(".cap", media);
       const lines = club.voiceLines || [[0, "— Шановна колегіє, я стверджую, що пари о 8:30 — це злочин проти людства."], [5, "— Опонентко, а ви бачили, як порожніє черга в Гіркому о 8:15?"], [10, "— Час! Судді, ваш вердикт."]];
-      const DUR = club.voiceDur || 15, fmt = x => "0:" + String(Math.floor(x)).padStart(2, "0");
-      const play = () => { if (club.voice) Sound.voice(club.voice); };
-      play(); cv.addEventListener("click", play);
+      const DUR = club.voiceDur || 15;
+      const trk = standTrack(club, cv);
       const t0 = performance.now(); let run = true;
       (function f(now) {
         if (!run) return;
-        const st = club.voice ? Sound.voiceState(club.voice) : false, au = st === true ? Sound.voiceAudio() : null;
-        const real = !!au, playing = real ? !au.paused && !au.ended : st !== undefined;
-        const t = real ? au.currentTime : (now - t0) / 1000 % DUR, anim = (now - t0) / 1000;
+        const k = trk.get(), anim = (now - t0) / 1000, real = k.real, playing = k.playing;
+        const t = k.t === null ? anim % DUR : Math.min(k.t, DUR);
         ctx.fillStyle = "#141b2e"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#d9a21b";
         for (let i = 0; i < 76; i++) { const a = (playing ? Math.abs(Math.sin(i * 0.7 + anim * 6) * Math.sin(i * 0.13 + anim)) * 90 : 2) + 4; ctx.fillRect(10 + i * 10, 110 - a / 2, 6, a); }
         ctx.fillStyle = "#f7f4ee"; ctx.font = "700 13px Manrope, sans-serif";
-        ctx.fillText(real && !playing ? "↻ натисніть, щоб прослухати ще раз" : "▶ аудіо · " + fmt(t) + " / " + fmt(DUR), 14, 24);
+        ctx.fillText(k.waiting ? "▶ аудіо · зараз почнеться…" : real && !playing ? "↻ натисніть, щоб прослухати ще раз" : "▶ аудіо · " + fmt(t) + " / " + fmt(DUR), 14, 24);
         const L = [...lines].reverse().find(l => t >= l[0]) || lines[0]; cap.textContent = L[1];
-        if (!real && st === false && Math.floor(anim * 8) % 2 === 0) Sound.blip(t < lines[1][0] || t >= lines[2][0] ? 1.1 : 0.85);
+        if (k.t === null && Math.floor(anim * 8) % 2 === 0) Sound.blip(t < lines[1][0] || t >= lines[2][0] ? 1.1 : 0.85);
         requestAnimationFrame(f);
       })(t0);
       stopMedia = () => { run = false; if (club.voice) Sound.stopVoice(); };
     } else if (club.media === "video") {
-      media.innerHTML = `<canvas width="760" height="260"></canvas><div class="cap"></div>`;
-      const ctx = $("canvas", media).getContext("2d"), cap = $(".cap", media);
-      const lines = [[0, "Бекстейдж: знімаємо інтерв'ю з фрешами біля 3-го корпусу"], [7, "Монтаж — уночі, публікація — до першої пари"], [14, "Анонси всіх подій — у наших соцмережах"]];
+      media.innerHTML = `<canvas width="760" height="260" style="cursor:pointer" title="Натисніть, щоб переглянути ще раз"></canvas><div class="cap"></div>`;
+      const cv = $("canvas", media), ctx = cv.getContext("2d"), cap = $(".cap", media);
+      const lines = club.voiceLines || [[0, "Бекстейдж: знімаємо інтерв'ю з фрешами біля 3-го корпусу"], [7, "Монтаж — уночі, публікація — до першої пари"], [14, "Анонси всіх подій — у наших соцмережах"]];
+      const DUR = club.voiceDur || 20, trk = standTrack(club, cv);
       const t0 = performance.now(); let run = true;
-      (function f(now) { if (!run) return; const t = (now - t0) / 1000 % 20; ctx.fillStyle = "#2a3150"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#e6c27a"; ctx.fillRect(80 - t * 4, 60, 500, 200); ctx.fillStyle = "#2f7d6d"; ctx.fillRect(60 - t * 4, 30, 540, 40); ctx.fillStyle = "#141b2e"; rr(ctx, 520, 80, 160, 100, 12); ctx.fill(); ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(600, 130, 34, 0, 7); ctx.fill(); ctx.fillStyle = "#9ec3d6"; ctx.beginPath(); ctx.arc(600, 130, 20, 0, 7); ctx.fill(); if (Math.floor(t * 2) % 2 === 0) { ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.arc(30, 26, 8, 0, 7); ctx.fill(); } ctx.fillStyle = "#fff"; ctx.font = "700 13px Manrope, sans-serif"; ctx.fillText("REC · відео 0:" + String(Math.floor(t)).padStart(2, "0") + " / 0:20", 46, 31); cap.textContent = [...lines].reverse().find(l => t >= l[0])[1]; requestAnimationFrame(f); })(t0);
-      stopMedia = () => run = false;
+      (function f(now) {
+        if (!run) return;
+        const k = trk.get(), anim = (now - t0) / 1000, t = k.t === null ? anim % DUR : Math.min(k.t, DUR), mv = k.playing ? anim : 0;
+        ctx.fillStyle = "#2a3150"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#e6c27a"; ctx.fillRect(80 - (mv * 4) % 60, 60, 500, 200); ctx.fillStyle = "#2f7d6d"; ctx.fillRect(60 - (mv * 4) % 60, 30, 540, 40); ctx.fillStyle = "#141b2e"; rr(ctx, 520, 80, 160, 100, 12); ctx.fill(); ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(600, 130, 34, 0, 7); ctx.fill(); ctx.fillStyle = "#9ec3d6"; ctx.beginPath(); ctx.arc(600, 130, 20, 0, 7); ctx.fill();
+        if (k.playing && Math.floor(anim * 2) % 2 === 0) { ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.arc(30, 26, 8, 0, 7); ctx.fill(); }
+        ctx.fillStyle = "#fff"; ctx.font = "700 13px Manrope, sans-serif";
+        ctx.fillText(k.waiting ? "REC · зараз почнеться…" : k.real && !k.playing ? "↻ натисніть, щоб переглянути ще раз" : "REC · відео " + fmt(t) + " / " + fmt(DUR), 46, 31);
+        cap.textContent = ([...lines].reverse().find(l => t >= l[0]) || lines[0])[1]; requestAnimationFrame(f);
+      })(t0);
+      stopMedia = () => { run = false; if (club.voice) Sound.stopVoice(); };
     } else if (club.media === "gallery") {
       const pics = [["Екскурсія Подолом", (c) => { c.fillStyle = "#e6c27a"; c.fillRect(20, 60, 200, 90); c.fillStyle = "#2f7d6d"; c.fillRect(10, 40, 220, 26); for (let i = 0; i < 5; i++) person(c, 40 + i * 40, 190, 1, ["#3e5aa8", "#c2452d", "#2f7d6d", "#6b4fa0", "#d9a21b"][i]); }],
         ["В архіві Академії", (c) => { c.fillStyle = "#6b4a2b"; c.fillRect(10, 20, 220, 170); for (let r = 0; r < 4; r++) for (let i = 0; i < 12; i++) { c.fillStyle = ["#8c2f3c", "#2f5d4e", "#a8770a"][(i + r) % 3]; c.fillRect(20 + i * 17, 30 + r * 42, 13, 34); } }],
         ["Реконструкція 1632", (c) => { c.fillStyle = "#3e3258"; c.fillRect(0, 0, 240, 200); c.drawImage(svgImage("sk", npcSVG("skovoroda", "happy")), 60, 10, 120, 184); }]];
+      Sound.voice(voFor(null, "Екскурсія Подолом. В архіві Академії. Реконструкція 1632 року."), { queue: true });
       media.innerHTML = `<div class="gallery">${pics.map(p => `<figure><canvas width="240" height="200"></canvas><figcaption>${p[0]}</figcaption></figure>`).join("")}</div>`;
       $$("canvas", media).forEach((c, i) => { const x = c.getContext("2d"); x.fillStyle = "#3a4058"; x.fillRect(0, 0, 240, 200); const draw = () => pics[i][1](x); draw(); setTimeout(draw, 300); });
     } else {
       media.innerHTML = `<canvas width="760" height="260"></canvas>`;
+      Sound.voice(voFor(null, "ПОРУЧ. Відкрита зустріч щочетверга о 18:00 у дворі Староакадемічного корпусу."), { queue: true });
       const ctx = $("canvas", media).getContext("2d"); const t0 = performance.now(); let run = true;
       (function f(now) { if (!run) return; const t = (now - t0) / 1000; ctx.fillStyle = "#ffd500"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#0057b8"; ctx.fillRect(0, 160, 760, 100); ctx.save(); ctx.translate(380, 110); const s = 1 + Math.sin(t * 3) * 0.05; ctx.scale(s, s); ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.moveTo(0, 30); ctx.bezierCurveTo(-60, -10, -40, -60, 0, -30); ctx.bezierCurveTo(40, -60, 60, -10, 0, 30); ctx.fill(); ctx.restore(); ctx.fillStyle = "#141b2e"; ctx.font = "800 30px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("ПОРУЧ", 380, 196); ctx.fillStyle = "#fff"; ctx.font = "700 16px Manrope, sans-serif"; ctx.fillText("Відкрита зустріч щочетверга · 18:00 · двір Староакадемічного", 380, 230); ctx.textAlign = "left"; requestAnimationFrame(f); })(t0);
       stopMedia = () => run = false;

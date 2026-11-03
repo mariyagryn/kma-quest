@@ -48,7 +48,7 @@
 
 **Атмосферні звуки** — `assets/ambience/<id>.mp3`: `yard`, `podil`, `office`, `library`, `evening`.
  
-**Озвучка** — `assets/voice/<id>.mp3`: `maryana_01`, `maryana_02`, `maryana_03a`, `maryana_03b`, `maryana_04`, `maryana_05`, `maryana_06`, `maryana_07`, `maryana_sched`, `guard_01`, `guard_02`, `guard_wrong_01`, `guard_wrong_02`, `skovoroda_01`, `skovoroda_02`, `skovoroda_03`, `skovoroda_history`, `olga_01`, `olga_02`, `olga_03`, `librarian_01`, `librarian_02`, `final`, `debate_club` (аудіо стенду Дебатного клубу; час реплік — у `src/data.js`, поле `voiceLines`). Текст реплік — у `src/story.js` поруч з id.
+**Озвучка** — `assets/voice/<id>.mp3`: `maryana_01`, `maryana_02`, `maryana_03a`, `maryana_03b`, `maryana_04`, `maryana_05`, `maryana_06`, `maryana_07`, `maryana_sched`, `guard_01`, `guard_02`, `guard_wrong_01`, `guard_wrong_02`, `skovoroda_01`, `skovoroda_02`, `skovoroda_03`, `skovoroda_history`, `olga_01`, `olga_02`, `olga_03`, `librarian_01`, `librarian_02`, `final`, `debate_club` (аудіо стенду Дебатного клубу), `media_club` (відео стенду KMA Today; час реплік — у `src/data.js`, поле `voiceLines`). Текст реплік — у `src/story.js` поруч з id.
  
 **Звукові ефекти** — `assets/sfx/<id>.mp3`: `click`, `ok`, `err`, `notif`, `word`, `print`, `bell`, `step`, `paper`, `shh`, `stamp`, `pop`, `whoosh`, `door`, `vibrate`, `sparkle`, `chime`.
 
