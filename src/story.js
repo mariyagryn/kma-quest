@@ -47,6 +47,7 @@ async function titleScreen() {
         <p>Перші дні першокурсника в Києво-Могилянській академії: пролог, чотири глави і фінал. Ти знайомишся з бадді, старостою, кампусом, історією Академії, деканатом і САЗом.</p>
         <ul><li>Програти неможливо: після помилки персонаж пояснить правильну відповідь.</li><li>Бали: +10 за відповідь з першої спроби, +5 з наступної. Максимум — 380.</li><li>Гра зберігається автоматично після кожної завершеної сцени.</li></ul>
         <p><b>Керування:</b> миша; <kbd>Пробіл</kbd>/<kbd>Enter</kbd> — далі; <kbd>1</kbd>–<kbd>3</kbd> — вибір відповіді; на карті <kbd>WASD</kbd>/стрілки та <kbd>E</kbd> — увійти.</p>
+        <p><b>Команда:</b> ${DATA.credits[0][1].map(esc).join(", ")}.</p>
         <p class="sub">Історичні дати звірено з джерелами НаУКМА; розклад, курси та кредити умовні. Назви студентських організацій справжні, а ситуації у грі художньо змодельовані.</p></div>`);
       $(".close", v).onclick = () => closeLayer(v);
     };
@@ -557,7 +558,7 @@ async function ch4Point(id) {
       hideDialog();
       await catalogSearch(); done("ch4_catalog");
       addWord("findbook", "Як шукати книгу", "1) електронний каталог → 2) шифр і приміщення → 3) полиця з тим самим шифром.", "guide");
-      if (id !== DATA.book.place) { await say("librarian", "(пошепки) Книга в Бібліотеці №2. Це інше приміщення, біля Волоської.", { small: true }); hideDialog(); hideNPC(); Sound.startAmb("podil"); return; }
+      if (id !== DATA.book.place) { await say("librarian", "(пошепки) Книга в Бібліотеці №2. Це інше приміщення, біля Волоської.", { small: true, voice: "librarian_02" }); hideDialog(); hideNPC(); Sound.startAmb("podil"); return; }
     } else if (id !== DATA.book.place) { toast("(пошепки) Книга — у Бібліотеці №2"); return; }
     MapView.hide(); hideTasks(); setBg("library"); Sound.startAmb("library"); showNPC("librarian");
     await shelvesGame(); hideNPC(); done("ch4_lib"); Sound.sfx("shh"); Sound.startAmb("podil"); return;
@@ -640,7 +641,7 @@ function credits() {
   return new Promise(res => {
     Sound.startMusic("theme_campus");
     const v = openLayer(`<canvas width="${W}" height="${H}"></canvas><div class="roll"><div class="big">KMA Quest</div><p>Квест для першокурсників Могилянки</p>
-      ${DATA.credits.map(([a, b]) => `<h3>${esc(a)}</h3><p>${esc(b)}</p>`).join("")}<h3>Дякуємо, що зіграли</h3><p class="big" style="font-size:40px">${esc(S.player.name || "")}, ласкаво просимо додому</p></div>
+      ${DATA.credits.map(([a, b]) => `<h3>${esc(a)}</h3><p>${Array.isArray(b) ? b.map(esc).join("<br>") : esc(b)}</p>`).join("")}<h3>Дякуємо, що зіграли</h3><p class="big" style="font-size:40px">${esc(S.player.name || "")}, ласкаво просимо додому</p></div>
       <div class="ctl"><button class="skip" id="cx" style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:18px;padding:7px 16px">Закрити</button></div>`, "credits");
     const ctx = $("canvas", v).getContext("2d"); let run = true; const t0 = performance.now();
     (function f(now) { if (!run) return; BG.yardDay(ctx, (now - t0) / 1000); requestAnimationFrame(f); })(t0);

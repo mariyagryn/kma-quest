@@ -18,6 +18,22 @@ let S = freshState();
 const score = () => Object.values(S.scoreLog).reduce((a, b) => a + b, 0);
 const tpl = s => String(s).replace(/\{name\}/g, S.player.name || "фреше").replace(/\{faculty\}/g, S.player.facultyShort || "ФІ").replace(/\{specialty\}/g, S.player.specialty || "");
  
+/* ---------- Автоозвучка: кожен показаний текст шукає assets/voice/auto/<хеш>.mp3 ---------- */
+const VO_FIXED = { "maryana|У КМА аудиторія записується як корпус-номер. Бачиш стовпець «тижні»? Деякі семінари йдуть не щотижня.": "maryana_sched" };
+const VO = { log: [], seen: {}, videos: {} };
+function voKey(who, raw) {
+  const s = (who || "narr") + "|" + raw; let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return "auto/" + h.toString(16).padStart(8, "0");
+}
+function voFor(who, raw) {
+  raw = String(raw || "").trim(); if (!raw) return null;
+  const fixed = VO_FIXED[(who || "narr") + "|" + raw]; if (fixed) return fixed;
+  const id = voKey(who, raw);
+  if (Q.has("collect") && !VO.seen[id]) { VO.seen[id] = 1; VO.log.push({ id, who: who || null, text: raw }); }
+  return id;
+}
+
 function storeGet(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
 function storeSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 function storeDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
@@ -83,21 +99,44 @@ function pushKeys(fn) { keyStack.push(fn); return () => { const i = keyStack.las
  
 /* ---------- Dialog ---------- */
 function speakerName(who) { if (!who) return ""; if (who === "me") return S.player.name || "Я"; const n = DATA.npc[who]; return n ? n.name : who; }
-function typeInto(el, text, who) {
+function typeInto(el, text, who, voiceId) {
   return new Promise(res => {
     const npc = DATA.npc[who] || {};
     if (FAST) { el.textContent = text; res(() => {}); return; }
-    let i = 0; el.textContent = "";
+    let i = 0, done = false; el.textContent = "";
+    const t0 = performance.now();
+    const show = n => { n = Math.max(i, Math.min(text.length, n)); if (n !== i) { i = n; el.textContent = text.slice(0, i); } };
+    const end = () => { if (done) return; done = true; clearInterval(iv); el.textContent = text; res(); };
+    // з озвучкою: текст іде синхронно з аудіо (скільки програно — стільки видно)
+    const synced = () => {
+      if (!voiceId || !Sound.enabled) return false;
+      if (Sound.voiceQueued(voiceId)) return performance.now() - t0 < 30000 ? "wait" : false;
+      const st = Sound.voiceState(voiceId);
+      if (st === undefined) return performance.now() - t0 < 2600 ? "wait" : false;
+      if (st !== true) return false;
+      const au = Sound.voiceAudio();
+      if (!au || !au.src.endsWith("/" + voiceId + ".mp3")) return false;
+      if (!isFinite(au.duration) || au.duration <= 0) return "wait";
+      if (au.ended) return "end";
+      if (au.paused && au.currentTime === 0) return performance.now() - t0 < 1500 ? "wait" : false; // автозапуск заблоковано
+      return au.currentTime / (au.duration * 0.92); // текст трохи випереджає кінець фрази
+    };
     const iv = setInterval(() => {
-      i++; el.textContent = text.slice(0, i);
+      const k = synced();
+      if (k === "wait") return;
+      if (k === "end") { end(); return; }
+      if (k !== false) { show(Math.ceil(text.length * Math.min(1, k))); if (i >= text.length) end(); return; }
+      // без озвучки — як раніше: символ за кроком і «біпи»
+      show(i + 1);
       if (who && text[i - 1] && text[i - 1] !== " ") Sound.blip(npc.pitch || 1, npc.whisper);
-      if (i >= text.length) { clearInterval(iv); res(); }
+      if (i >= text.length) end();
     }, 22);
-    el._finish = () => { clearInterval(iv); el.textContent = text; res(); };
+    el._finish = end;
   });
 }
 /** Репліка. who: id NPC / "me" / null (оповідач). */
 async function say(who, text, o = {}) {
+  o = Object.assign({}, o); if (!o.voice) o.voice = voFor(who, text);
   text = tpl(text);
   const d = $("#dialog"), tx = $(".text", d), ch = $(".choices", d), nx = $(".next", d);
   if (o.sprite !== false && CHAR[who]) showNPC(who, o.emo || "neutral");
@@ -106,7 +145,7 @@ async function say(who, text, o = {}) {
   tx.className = "text" + (o.small ? " small" : "") + (!who ? " narr" : "");
   if (o.voice) Sound.voice(o.voice);
   let typing = true;
-  const p = typeInto(tx, text, who);
+  const p = typeInto(tx, text, who, o.voice);
   if (o.voice) { const tag = document.createElement("span"); tag.className = "voice-tag"; tag.textContent = "🔊 озвучено"; p.then(() => setTimeout(() => { if (Sound.hasVoice(o.voice) && tx.isConnected) tx.appendChild(tag); }, 300)); }
   return new Promise(res => {
     const advance = () => {
@@ -128,7 +167,8 @@ async function choose(options, o = {}) {
     $(".who", d).textContent = speakerName(o.who);
     if (o.who && CHAR[o.who] && o.sprite !== false) showNPC(o.who, o.emo || "neutral");
     tx.className = "text" + (!o.who ? " narr" : "");
-    await typeInto(tx, tpl(o.text), o.who);
+    const vid = o.voice || voFor(o.who, o.text); Sound.voice(vid);
+    await typeInto(tx, tpl(o.text), o.who, vid);
   }
   return new Promise(res => {
     options.forEach((t, i) => {
@@ -215,7 +255,28 @@ async function slideTasksIn() { const el = $("#tasks"); el.classList.add("out");
 /* ---------- Layers ---------- */
 function openLayer(html, cls = "veil") {
   const v = document.createElement("div"); v.className = cls; v.innerHTML = html;
-  $("#layer").appendChild(v); return v;
+  $("#layer").appendChild(v); layerVoices(v); return v;
+}
+// реакції міні-ігор (.feedback) — озвучує оповідач, якщо в панелі не говорить персонаж
+(function watchFeedback() {
+  const root = document.getElementById("layer"); if (!root) return;
+  new MutationObserver(ms => {
+    for (const m of ms) {
+      const el = m.target.nodeType === 1 ? m.target : m.target.parentElement;
+      const fbs = el ? (el.matches && el.matches(".feedback") ? [el] : (el.closest && el.closest(".feedback") ? [el.closest(".feedback")] : $$(".feedback", el))) : [];
+      for (const fb of fbs) {
+        const t = fb.textContent.trim(); if (!t || fb._vo === t) continue; fb._vo = t;
+        const panel = fb.closest(".panel"); if (panel && $(".speaker-hint", panel)) continue;
+        Sound.voice(voFor(null, t));
+      }
+    }
+  }).observe(root, { subtree: true, childList: true, characterData: true });
+})();
+function layerVoices(v) {
+  const ids = [];
+  $$(".panel > .sub, .panel > div > .sub", v).forEach(el => { const id = voFor(null, el.textContent); if (id) ids.push(id); });
+  $$(".ht[data-vo]", v).forEach(el => { if (el.dataset.vo) ids.push(el.dataset.vo); });
+  ids.forEach((id, i) => Sound.voice(id, i ? { queue: true } : undefined));
 }
 function closeLayer(v) { if (v && v.parentNode) v.remove(); }
  
@@ -223,7 +284,7 @@ function closeLayer(v) { if (v && v.parentNode) v.remove(); }
 async function titleCard(eyebrow, title, ms = 2600) {
   const c = $("#card");
   c.innerHTML = `<div class="in"><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(tpl(title))}</h1></div>`;
-  c.classList.add("on"); Sound.sfx("chime");
+  c.classList.add("on"); Sound.sfx("chime"); Sound.voice(voFor(null, eyebrow + ". " + title));
   await sleep(ms);
   c.classList.remove("on"); await sleep(700);
 }
@@ -255,6 +316,7 @@ function playVideo({ id, dur, draw, subs = [], skippable = true, vertical = fals
     const cv = $("canvas", v), ctx = cv.getContext("2d"), sub = $(".subs span", v), prog = $(".prog", v);
     const speed = FAST ? 40 : 1;
     let t0 = performance.now(), done = false, videoEl = null, lastSub = -1;
+    if (!voice && id) { voice = "auto/vid_" + id; if (Q.has("collect")) VO.videos[id] = { dur, subs: subs.map(x => [x[0], x[1], x[2]]) }; }
     if (voice) Sound.voice(voice);
     const finish = () => { if (done) return; done = true; pop(); Sound.stopVoice(); if (videoEl) videoEl.pause(); closeLayer(v); res(); };
     const pop = pushKeys(e => { if (skippable && (e.key === "Escape" || e.key === "Enter")) { finish(); return true; } });
@@ -309,13 +371,14 @@ function openNotebook(fromTitle = false) {
  
 /* ---------- Speaker hint inside panels ---------- */
 function hintBox(who, text) {
-  return `<div class="speaker-hint"><div class="av">${npcSVG(who, "neutral", { head: true })}</div><div><b>${esc(speakerName(who))}</b><span class="ht">${esc(tpl(text))}</span></div></div>`;
+  return `<div class="speaker-hint"><div class="av">${npcSVG(who, "neutral", { head: true })}</div><div><b>${esc(speakerName(who))}</b><span class="ht" data-vo="${voFor(who, text) || ""}">${esc(tpl(text))}</span></div></div>`;
 }
 function setHint(root, who, text, emo = "neutral") {
   const h = $(".speaker-hint", root); if (!h) return;
   $(".av", h).innerHTML = npcSVG(who, emo, { head: true });
   $("b", h).textContent = speakerName(who);
-  $(".ht", h).textContent = tpl(text);
+  const ht = $(".ht", h), vid = voFor(who, text);
+  Sound.voice(vid); typeInto(ht, tpl(text), who, vid);
 }
  
 /* ---------- Drag & drop helper (pointer events, працює зі scale) ---------- */
