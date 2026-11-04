@@ -1,7 +1,7 @@
 /* =========================================================
    Міні-ігри і квізи. Усі — детерміновані, помилка не блокує.
    ========================================================= */
- 
+
 /* ---------- Телефон / чат ---------- */
 function phoneOpen({ title, sub = "", av = "" }) {
   const v = openLayer(`<div class="phone"><div class="notch"></div><div class="scr">
@@ -31,7 +31,7 @@ function phoneOpen({ title, sub = "", av = "" }) {
   };
   return api;
 }
- 
+
 /* ---------- 1.2 Сленг-перекладач ---------- */
 function slangGame() {
   return new Promise(res => {
@@ -63,7 +63,7 @@ function slangGame() {
     window.__solve = v._solve;
   });
 }
- 
+
 /* ---------- Панельний квіз (всередині root) ---------- */
 function panelQuiz(root, items, { who, keyPrefix, onDone, qSel = ".qz" }) {
   return new Promise(res => {
@@ -93,7 +93,7 @@ function panelQuiz(root, items, { who, keyPrefix, onDone, qSel = ".qz" }) {
     render();
   });
 }
- 
+
 /* ---------- 2.1 Розклад ---------- */
 async function scheduleTask() {
   const v = openLayer(`<div class="panel sched"><div style="min-width:0"><div class="eyebrow">Глава 2 · завдання 2.1</div><h2>Як читати розклад</h2>
@@ -106,7 +106,7 @@ async function scheduleTask() {
   await sleep(500);
   closeLayer(v);
 }
- 
+
 /* ---------- 2.2 Двері ---------- */
 function doorsGame() {
   return new Promise(res => {
@@ -124,7 +124,7 @@ function doorsGame() {
     }));
   });
 }
- 
+
 /* ---------- 2.3 Фото й сторіс ---------- */
 function drawPhoto(ctx, id) {
   const w = 660, h = 370;
@@ -180,7 +180,7 @@ function huntStory(i) {
       ctx.fillStyle = "rgba(255,255,255,.8)"; ctx.font = "600 13px Manrope, sans-serif"; ctx.fillText(MAP_POINTS.find(p => p.id === h.id).name + " · Поділ", 60, 76);
     } });
 }
- 
+
 /* ---------- 3.3 Стрічка часу ---------- */
 function timelineGame() {
   return new Promise(res => {
@@ -219,7 +219,7 @@ function timelineGame() {
     if (TEST) window.__solve = () => { sorted.forEach((y, i) => { const c = $(`.card[data-y="${y}"]`, v); slots[i].appendChild(c); }); $("#chk", v).click(); };
   });
 }
- 
+
 /* ---------- 4.1 ЄКТС-інфографіка + Збери ІНП ---------- */
 function ectsInfographic() {
   return new Promise(res => {
@@ -270,7 +270,7 @@ function inpGame() {
     if (TEST) window.__solve = () => { $("#el_kino", v).checked = true; $("#el_eng", v).checked = true; $("#ok", v).click(); };
   });
 }
- 
+
 /* ---------- 4.2 САЗ ---------- */
 function sazGame() {
   return new Promise(res => {
@@ -315,10 +315,10 @@ function sazGame() {
         <div class="feedback ${msg ? "bad" : ""}" style="margin:0 0 10px">${esc(msg)}</div>
         <table><thead><tr><th>Дисципліна</th><th>Кредити</th><th>Місця</th><th></th></tr></thead><tbody>
         ${listIds.map(id => { const c = byId[id], isFull = id === fullId && triedFull, isIn = enrolled.includes(id);
-          const seats = isFull ? '<span class="full">Місць немає (0/25)</span>' : (9 + (id.length * 5 + c.cr * 3) % 14) + "/25";
-          const tag = plan.includes(id) ? ' <small style="color:#56607a">· з ІНП</small>' : "";
-          const act = isIn ? '<span class="in">✓ записано</span>' : isFull ? "" : `<button class="sbtn" data-id="${id}" ${ok === id ? 'data-ok="1"' : ""}>Записатися</button>`;
-          return `<tr><td>${esc(c.c)}${tag}</td><td>${c.cr}</td><td>${seats}</td><td>${act}</td></tr>`; }).join("")}
+        const seats = isFull ? '<span class="full">Місць немає (0/25)</span>' : (9 + (id.length * 5 + c.cr * 3) % 14) + "/25";
+        const tag = plan.includes(id) ? ' <small style="color:#56607a">· з ІНП</small>' : "";
+        const act = isIn ? '<span class="in">✓ записано</span>' : isFull ? "" : `<button class="sbtn" data-id="${id}" ${ok === id ? 'data-ok="1"' : ""}>Записатися</button>`;
+        return `<tr><td>${esc(c.c)}${tag}</td><td>${c.cr}</td><td>${seats}</td><td>${act}</td></tr>`; }).join("")}
         </tbody></table>
         ${credits() === 30 && triedFull ? `<div style="margin-top:12px"><button class="btn gold" id="sz_c" data-ok="1">Підтвердити запис</button></div>` : ""}`;
       $$(".sbtn", main).forEach(b => b.onclick = () => enroll(b.dataset.id));
@@ -362,13 +362,13 @@ function sazGame() {
     stepLogin();
   });
 }
- 
+
 /* ---------- 4.3 Бібліотека ---------- */
 function catalogSearch() {
   return new Promise(res => {
     const b = DATA.book;
     const v = openLayer(`<div class="panel catalog"><div class="eyebrow">Електронний каталог бібліотеки</div><h2>Знайди книгу Сковороди</h2>
-      <p class="sub">Введи прізвище автора і натисни «Шукати». У результаті буде шифр і приміщення.</p>
+      <p class="sub">Введи прізвище автора і натисни «Шукати». У результаті побачиш шифр книги та місце на полиці.</p>
       <form class="search" id="sf"><input id="sq" placeholder="Наприклад: Сковорода" autocomplete="off"><button class="btn" type="submit">Шукати</button></form>
       <div id="res"></div><div style="margin-top:12px">${hintBox("librarian", "(пошепки) Спочатку шукай у каталозі, там буде шифр і місце.")}</div></div>`);
     const inp = $("#sq", v); setTimeout(() => inp.focus(), 50);
@@ -387,7 +387,7 @@ function catalogSearch() {
 function shelvesGame() {
   return new Promise(res => {
     const cols = ["#8c2f3c", "#2f5d4e", "#3e5aa8", "#a8770a", "#5a4a7a", "#6b4a2b"];
-    const v = openLayer(`<div class="panel catalog" style="width:960px"><div class="eyebrow">Бібліотека №2 · читальна зала</div><h2>Полиця з шифром ${esc(DATA.book.code)}</h2>
+    const v = openLayer(`<div class="panel catalog" style="width:960px"><div class="eyebrow">Бібліотека 11-го корпусу · читальна зала</div><h2>Полиця з шифром ${esc(DATA.book.code)}</h2>
       <p class="sub">Знайди полицю з таким самим шифром, як у каталозі.</p>
       <div class="shelves">${DATA.shelvesCodes.map((c, i) => `<button class="shelf" data-c="${esc(c)}" ${TEST && c === DATA.book.code ? 'data-ok="1"' : ""}><span class="code">${esc(c)}</span>${[0, 1, 2].map(r => `<div class="row">${Array.from({ length: 9 }, (_, k) => `<i style="background:${cols[(k + r * 2 + i) % 6]};height:${60 + ((k * 7 + r * 5 + i * 3) % 30)}%"></i>`).join("")}</div>`).join("")}</button>`).join("")}</div>
       <div class="feedback"></div></div>`);
@@ -400,7 +400,7 @@ function shelvesGame() {
     }));
   });
 }
- 
+
 /* ---------- Стенди СО ---------- */
 // трек картки: перший раз — у черзі після опису стенду, клік — заново одразу
 function standTrack(club, cv) {
@@ -418,7 +418,7 @@ function standTrack(club, cv) {
 function standVisit(club) {
   return new Promise(res => {
     const done = S.stamps.includes(club.id);
-    const v = openLayer(`<div class="panel stand"><button class="close" aria-label="Закрити">✕</button><div class="eyebrow">Стенд СО · Глава ${club.ch}</div><h2>${esc(club.name)}</h2><p class="sub" style="margin:0">${esc(club.blurb)}</p>
+    const v = openLayer(`<div class="panel stand"><button class="close" aria-label="Закрити">✕</button><div class="eyebrow">${club.id === "media" ? "Медіапроєкт · 1-й корпус" : `Стенд СО · Глава ${club.ch}`}</div><h2>${esc(club.name)}</h2><p class="sub" style="margin:0">${esc(club.blurb)}</p>
       <div class="media" id="media"></div><div class="qz"></div></div>`);
     const media = $("#media", v);
     let stopMedia = () => {};
@@ -486,7 +486,7 @@ function standVisit(club) {
     });
   });
 }
- 
+
 /* ---------- Вибір гуртка ---------- */
 function clubChoice() {
   return new Promise(res => {
@@ -496,7 +496,7 @@ function clubChoice() {
     $$(".clubs button", v).forEach(b => b.onclick = () => { Sound.sfx("ok"); S.club = b.dataset.id; closeLayer(v); res(b.dataset.id); });
   });
 }
- 
+
 /* ---------- Сертифікат (PNG) ---------- */
 async function makeCertificate() {
   try { await document.fonts.ready; } catch (e) {}
@@ -532,4 +532,3 @@ async function makeCertificate() {
   x.strokeStyle = "#d9a21b"; x.lineWidth = 6; x.beginPath(); x.arc(270, 880, 110, 0, 7); x.stroke();
   return c.toDataURL("image/png");
 }
- 

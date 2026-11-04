@@ -5,7 +5,7 @@
 const ORDER = ["prologue", "ch1", "ch1_hub", "ch2", "ch3", "ch3_hub", "ch4", "club", "final", "done"];
 const T = S2 => S.tasks[S2] === true;
 const done = k => { S.tasks[k] = true; };
- 
+
 /* ---------- Титульний екран ---------- */
 function gate() {
   return new Promise(res => {
@@ -53,7 +53,7 @@ async function titleScreen() {
     };
   });
 }
- 
+
 /* ---------- ПРОЛОГ ---------- */
 function admissionVideo() {
   return playVideo({ id: "p1_admission", dur: 25, subs: [[0.5, 4, "Серпень. Кімната абітурієнта."], [4, 10, "Телефон вібрує: «Вас рекомендовано до зарахування — НаУКМА»"], [10, 16, "Та ну! ТАК!!!"], [16, 22, "На стіні з'являється нова позначка: «1 вересня»"]],
@@ -167,7 +167,7 @@ function nightToMorning() {
     })(t0);
   });
 }
- 
+
 /* ---------- ГЛАВА 1 ---------- */
 const debateClub = DATA.clubs[0], mediaClub = DATA.clubs[1], histClub = DATA.clubs[2], volClub = DATA.clubs[3];
 function ch1Tasks() {
@@ -270,28 +270,39 @@ function unfoldMap() {
     })(t0);
   });
 }
- 
+
 /* ---------- ГЛАВА 2 ---------- */
 function ch2State(id) {
   const h = S.hunt || 0, started = T("ch2_hunt_started");
   switch (id) {
     case "corp3": return T("ch2_sched") ? "done" : "active";
+    case "corp1": return S.stamps.includes("media") ? "done" : "active";
     case "kmc": return T("ch2_room") ? "done" : T("ch2_sched") ? "active" : "normal";
-    case "girkyi": case "puzatka": case "kfs": { const idx = DATA.hunt.findIndex(x => x.id === id); return idx < h ? "icon" : (T("ch2_hunt") ? "icon" : "active"); }
-    case "stand2": return S.stamps.includes("media") ? "done" : "active";
+    case "girkyi": case "puzatka": case "kfs": {
+      const idx = DATA.hunt.findIndex(x => x.id === id);
+      if (T("ch2_hunt") || idx < h) return "icon";
+      if (!started) return idx === 0 ? "active" : "normal";
+      return idx === h ? "active" : "normal";
+    }
+    case "silpo": return "normal";
+    case "lib11": return "locked";
     case "stand4": return "hidden";
-    case "lib1": case "lib2": case "dean": return "locked";
+    case "stara": return "hidden";
     default: return "normal";
   }
 }
 function ch2Tasks() {
   const h = S.hunt || 0;
+  const nextHunt = DATA.hunt[h];
+  const huntSub = T("ch2_hunt_started") && !T("ch2_hunt")
+      ? `знайдено ${h} з 3 · наступне: ${nextHunt ? nextHunt.id === "girkyi" ? "Гіркий" : nextHunt.id === "puzatka" ? "Пузата Хата" : "KFC" : "готово"}`
+      : "почни з Гіркого, далі шукай за фото";
   setTasks("Глава 2 · орієнтація", [
-    { id: "s", label: "Як читати розклад", sub: "3-й корпус", done: T("ch2_sched") },
-    { id: "r", label: "Перша лекція: знайти аудиторію", sub: T("ch2_sched") ? "КМЦ, ауд. " + DATA.targetRoom : "спершу розклад", done: T("ch2_room") },
-    { id: "h", label: "Кава між парами", sub: T("ch2_hunt_started") ? `знайдено ${h} з 3 · фото ${Math.min(h + 1, 3)}` : "зайди в будь-яке кафе на карті", done: T("ch2_hunt"), click: T("ch2_hunt_started") && !T("ch2_hunt") },
-    { id: "st", label: "Стенд СО: KMA Today", opt: true, done: S.stamps.includes("media") }
-  ], T("ch2_hunt_started") && !T("ch2_hunt") ? "Натисни «Кава між парами», щоб знову побачити фото." : "Завдання — у будь-якому порядку. Точки з «!» активні.");
+    { id: "s", label: "Як читати розклад", sub: "3-й корпус · Циркульний", done: T("ch2_sched") },
+    { id: "r", label: "Перша лекція: знайти аудиторію", sub: T("ch2_sched") ? "КМЦ, ауд. " + DATA.targetRoom : "спершу відкрий розклад", done: T("ch2_room") },
+    { id: "h", label: "Кава між парами", sub: huntSub, done: T("ch2_hunt"), click: T("ch2_hunt_started") && !T("ch2_hunt") },
+    { id: "st", label: "KMA Today", sub: "1-й корпус · усередині будівлі", opt: true, done: S.stamps.includes("media") }
+  ], T("ch2_hunt_started") && !T("ch2_hunt") ? "Основні завдання можна виконувати в будь-якому порядку; фотоквест проходь послідовно за підказками." : "Розклад, перша лекція й KMA Today — у будь-якому порядку. Фотоквест починається з Гіркого.");
 }
 async function ch2() {
   setChapter("Глава 2 · Орієнтація на кампусі"); showHUD(true); hideNPC(); hideDialog();
@@ -306,19 +317,17 @@ async function ch2() {
   while (!(T("ch2_sched") && T("ch2_room") && T("ch2_hunt"))) {
     MapView.show(ch2State, { from }); ch2Tasks(); setBg("blank");
     const id = await Promise.race([MapView.wait(), waitTask().then(t => "task:" + t)]);
+    if (id.startsWith("task:")) {
+      MapView.cancelWait();
+      if (id === "task:h") await showHuntPhoto(S.hunt || 0);
+      continue;
+    }
     from = id;
-    if (id === "task:h") { await showHuntPhoto(S.hunt || 0); continue; }
-    if (id.startsWith("task:")) continue;
     await ch2Point(id);
     S._mapFrom = id; save();
   }
   ch2Tasks();
-  if (!S.stamps.includes("media")) {
-    MapView.show(ch2State, { from });
-    const r = await choose(["Зайду до стенду", "Ні, далі"], { who: "maryana", text: "Головне зроблено! Стенд KMA Today ще стоїть на площі. Зазирнеш?", sprite: false });
-    hideDialog();
-    if (r.i === 0) await standVisit(mediaClub);
-  }
+  // KMA Today is an optional visit inside the 1st corpus, not a separate campus stand.
   hideTasks();
   for (let k = 0; k <= 30; k++) { MapView.dusk = k / 30; await sleep(60); }
   MapView.hide(); MapView.dusk = 0;
@@ -332,41 +341,46 @@ async function ch2Point(id) {
     if (T("ch2_sched")) { toast("Розклад уже в Нотатнику"); return; }
     await scheduleTask(); done("ch2_sched"); return;
   }
+  if (id === "corp1") {
+    if (S.stamps.includes("media")) { toast("KMA Today уже відвідано. Це студентське медіа всередині 1-го корпусу."); return; }
+    await standVisit(mediaClub); return;
+  }
   if (id === "kmc") {
     if (T("ch2_room")) { toast("Ти вже знайшов аудиторію " + DATA.targetRoom); return; }
     if (!T("ch2_sched")) { await say("maryana", "Спочатку зазирни в розклад, бо як ти знатимеш номер аудиторії? Розклад — у 3-му корпусі.", { sprite: false }); hideDialog(); return; }
     await guardScene(); done("ch2_room"); return;
   }
   if (["girkyi", "puzatka", "kfs"].includes(id)) {
-    if (T("ch2_hunt")) { toast(MAP_POINTS.find(p => p.id === id).name + ": кава смачна, але завдання вже виконано ☕"); return; }
+    if (T("ch2_hunt")) { toast(MAP_POINTS.find(p => p.id === id).name + ": фотоквест уже виконано ☕"); return; }
     if (!T("ch2_hunt_started")) {
+      if (id !== DATA.hunt[0].id) { toast("Почни фотоквест із Гіркого: саме його показує перша підказка."); return; }
       done("ch2_hunt_started"); S.hunt = 0;
-      await say("maryana", "О, ти знайшов кафе! Тримай мій сторіс-квест: я сфоткала три місця, де ми п'ємо каву й обідаємо між парами. Знайди їх усі.", { sprite: false, voice: "maryana_06" });
+      await say("maryana", "О, ти знайшов Гіркий! Тримай мій сторіс-квест: я сфоткала три місця, де ми п'ємо каву й обідаємо між парами. Шукай їх по черзі за підказками.", { sprite: false, voice: "maryana_06" });
       hideDialog(); ch2Tasks();
       await showHuntPhoto(0);
-      if (id !== DATA.hunt[0].id) return;
     }
     const cur = DATA.hunt[S.hunt || 0];
-    if (id !== cur.id) { await say("maryana", "Хм, на фото не це місце. Подивись уважніше на вивіску.", { sprite: false }); hideDialog(); return; }
+    if (id !== cur.id) { await say("maryana", "Хм, на фото не це місце. Подивись уважніше на вивіску й повернися до потрібної точки.", { sprite: false }); hideDialog(); return; }
     Sound.sfx("ok");
     await huntStory(S.hunt || 0);
     award("ch2_hunt_" + cur.id, 10);
     S.hunt = (S.hunt || 0) + 1; save();
-    if (S.hunt >= DATA.hunt.length) { done("ch2_hunt"); addWord("cafes", "Де поїсти між парами", "Гіркий — кава; Пузатка — дешево пообідати; КФС/Сільпо — швидко перекусити.", "guide"); return; }
+    if (S.hunt >= DATA.hunt.length) { done("ch2_hunt"); addWord("cafes", "Де поїсти між парами", "Гіркий — кава; Пузата Хата — пообідати; KFC — швидко перекусити, а Сільпо поруч — вода, фрукти й снеки.", "guide"); return; }
     ch2Tasks(); await showHuntPhoto(S.hunt);
     return;
   }
-  if (id === "stand2") { await standVisit(mediaClub); return; }
-  if (id === "stara" || id === "corp3") {
-    if (T("ch2_sched") && !T("ch2_room")) { await say("maryana", "Хм, це не КМЦ. КМЦ — праворуч угорі, фіолетовий дах.", { sprite: false }); hideDialog(); return; }
-    toast("Староакадемічний корпус. Сюди ми ще повернемося ввечері…"); return;
+  if (id === "silpo") {
+    toast("Сільпо: тут можна взяти воду, фрукти й снеки. Для фотоквесту потрібен окремий пункт KFC."); return;
   }
+  if (id === "stara") { toast("Староакадемічний корпус. Сюди ми ще повернемося ввечері…"); return; }
+  const point = MAP_POINTS.find(p => p.id === id);
+  if (point) toast(point.name + ": тут зараз немає активного завдання. Можеш дослідити кампус далі.");
 }
 async function guardScene() {
   MapView.hide(); hideTasks(); setBg("kmcEntrance"); Sound.startAmb("office");
   await say("guard", "Стоп-стоп. Куди це ми так поспішаємо?", { voice: "guard_01" });
   await askScored("guard", "Ну? Я слухаю.", ["Доброго ранку! Я першокурсник, йду на лекцію. Ось мій студентський", "Відстаньте, я спізнююсь", "[мовчки пройти]"], 0,
-    { key: "ch2_guard", pts: [20, 10], wrong: [null, "Ввічливість ще нікого не сповільнювала.", "А студентський?"], wrongVoice: [null, "guard_wrong_01", "guard_wrong_02"], ok: "От це розмова. Аудиторія — другий поверх наліво.", okVoice: "guard_02", retryText: "Спробуймо ще раз. Куди йдемо?" });
+      { key: "ch2_guard", pts: [20, 10], wrong: [null, "Ввічливість ще нікого не сповільнювала.", "А студентський?"], wrongVoice: [null, "guard_wrong_01", "guard_wrong_02"], ok: "От це розмова. Аудиторія — другий поверх наліво.", okVoice: "guard_02", retryText: "Спробуймо ще раз. Куди йдемо?" });
   hideDialog(); hideNPC();
   await doorsGame();
   await lectureCutscene();
@@ -389,7 +403,7 @@ function lectureCutscene() {
       if (t > 7) { ctx.fillStyle = `rgba(20,27,46,${Math.min(.75, (t - 7) * .6)})`; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#d9a21b"; ctx.font = "800 110px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("Встиг!", 640, 390); }
     } });
 }
- 
+
 /* ---------- ГЛАВА 3 ---------- */
 function playHistoryVideo(replay) {
   const frames = [
@@ -487,26 +501,25 @@ function confettiDust() {
   const P = Array.from({ length: 140 }, () => ({ x: 520 + r() * 240, y: 120 + r() * 420, vx: (r() - .3) * 60, vy: -20 - r() * 70, s: 1 + r() * 3 }));
   (function f(now) { const el = (now - t0) / 1000; ctx.clearRect(0, 0, W, H); P.forEach(p => { ctx.fillStyle = `rgba(190,225,255,${Math.max(0, 1 - el / 2)})`; ctx.beginPath(); ctx.arc(p.x + p.vx * el, p.y + p.vy * el, p.s, 0, 7); ctx.fill(); }); if (el < 2) requestAnimationFrame(f); else c.remove(); })(t0);
 }
- 
+
 /* ---------- ГЛАВА 4 ---------- */
 function ch4State(id) {
   switch (id) {
-    case "dean": return T("ch4_inp") ? "done" : "active";
-    case "lib1": return T("ch4_lib") ? "done" : T("ch4_catalog") ? "normal" : "active";
-    case "lib2": return T("ch4_lib") ? "done" : "active";
+    case "corp4": return T("ch4_inp") ? "done" : "active";
+    case "lib11": return T("ch4_lib") ? "done" : "active";
     case "stand4": return S.stamps.includes("volunteer") ? "done" : "active";
-    case "stand2": return "hidden";
-    case "girkyi": case "puzatka": case "kfs": return "icon";
+    case "girkyi": case "puzatka": case "kfs": case "silpo": return "icon";
+    case "stara": return "hidden";
     default: return "normal";
   }
 }
 function ch4Tasks() {
   setTasks("Глава 4 · академічні виклики", [
-    { id: "inp", label: "Деканат: ЄКТС і ІНП", sub: "Деканат на карті", done: T("ch4_inp") },
+    { id: "inp", label: "Деканат: ЄКТС і ІНП", sub: "4-й корпус · адміністративні підрозділи", done: T("ch4_inp") },
     { id: "saz", label: "САЗ: запис на дисципліни", sub: T("ch4_inp") ? "натисни, щоб відкрити САЗ на ноутбуці" : "спершу склади ІНП", done: T("ch4_saz"), click: T("ch4_inp") && !T("ch4_saz") },
-    { id: "lib", label: "Бібліотека: знайди книгу", sub: T("ch4_catalog") ? "шифр " + DATA.book.code + " · Бібліотека №2" : "будь-яка бібліотека на карті", done: T("ch4_lib") },
+    { id: "lib", label: "Бібліотека: знайди книгу", sub: T("ch4_catalog") ? "шифр " + DATA.book.code + " · 11-й корпус" : "11-й корпус · бібліотека", done: T("ch4_lib") },
     { id: "st", label: "Стенд СО: Взаємодопомога", opt: true, done: S.stamps.includes("volunteer") }
-  ], "САЗ відкривається після ІНП. Бібліотека — у будь-який момент.");
+  ], "ІНП — у 4-му корпусі, бібліотека — в 11-му. САЗ відкривається після ІНП.");
 }
 async function ch4() {
   setChapter("Глава 4 · ВДМС: Академічні виклики"); showHUD(true); hideNPC(); hideDialog();
@@ -520,6 +533,7 @@ async function ch4() {
   while (!(T("ch4_inp") && T("ch4_saz") && T("ch4_lib"))) {
     MapView.show(ch4State, { from }); ch4Tasks(); setBg("blank");
     const id = await Promise.race([MapView.wait(), waitTask().then(t => "task:" + t)]);
+    if (id.startsWith("task:")) MapView.cancelWait();
     if (id === "task:saz") { await sazGame(); done("ch4_saz"); save(); continue; }
     if (id.startsWith("task:")) continue;
     from = id;
@@ -537,7 +551,7 @@ async function ch4() {
   save("club");
 }
 async function ch4Point(id) {
-  if (id === "dean") {
+  if (id === "corp4") {
     if (T("ch4_inp")) { toast("ІНП уже затверджено. САЗ — у списку завдань."); return; }
     MapView.hide(); hideTasks(); setBg("dean"); Sound.startAmb("office");
     await say("olga", "Так, {name}, ви також прийшли спитати, що таке ІНП? Сідайте, пояснюю один раз.", { voice: "olga_01" });
@@ -550,17 +564,16 @@ async function ch4Point(id) {
     await say("olga", "Записатися на вибіркові треба через САЗ. Ноутбук у вас є? Список завдань підкаже. І заходьте в САЗ вчасно, бо місця закінчуються.", { emo: "happy", voice: "olga_03" });
     hideDialog(); hideNPC(); done("ch4_inp"); Sound.startAmb("podil"); return;
   }
-  if (id === "lib1" || id === "lib2") {
+  if (id === "lib11") {
     if (T("ch4_lib")) { toast("Книгу вже знайдено 📚"); return; }
+    MapView.hide(); hideTasks(); setBg("library"); Sound.startAmb("library");
     if (!T("ch4_catalog")) {
-      MapView.hide(); hideTasks(); setBg("library"); Sound.startAmb("library");
-      await say("librarian", "(пошепки) У нас два приміщення бібліотеки. Спочатку шукай у електронному каталозі, там буде шифр і місце.", { small: true, voice: "librarian_01" });
+      await say("librarian", "(пошепки) Це бібліотека 11-го корпусу. Спочатку знайди книгу в електронному каталозі: там будуть її шифр і місце на полиці.", { small: true, voice: "librarian_01" });
       hideDialog();
       await catalogSearch(); done("ch4_catalog");
-      addWord("findbook", "Як шукати книгу", "1) електронний каталог → 2) шифр і приміщення → 3) полиця з тим самим шифром.", "guide");
-      if (id !== DATA.book.place) { await say("librarian", "(пошепки) Книга в Бібліотеці №2. Це інше приміщення, біля Волоської.", { small: true, voice: "librarian_02" }); hideDialog(); hideNPC(); Sound.startAmb("podil"); return; }
-    } else if (id !== DATA.book.place) { toast("(пошепки) Книга — у Бібліотеці №2"); return; }
-    MapView.hide(); hideTasks(); setBg("library"); Sound.startAmb("library"); showNPC("librarian");
+      addWord("findbook", "Як шукати книгу", "1) електронний каталог → 2) шифр книги → 3) полиця з таким самим шифром у бібліотеці 11-го корпусу.", "guide");
+    }
+    showNPC("librarian");
     await shelvesGame(); hideNPC(); done("ch4_lib"); Sound.sfx("shh"); Sound.startAmb("podil"); return;
   }
   if (id === "stand4") { await standVisit(volClub); return; }
@@ -577,7 +590,7 @@ async function clubScene() {
   hideDialog();
   save("final");
 }
- 
+
 /* ---------- ФІНАЛ ---------- */
 function finalCutscene() {
   const im = id => svgImage("f_" + id, npcSVG(id, "happy"));
@@ -649,7 +662,7 @@ function credits() {
     $("#cx", v).onclick = close; setTimeout(() => { if (run) close(); }, FAST ? 100 : 36000);
   });
 }
- 
+
 /* ---------- Запуск ---------- */
 async function runFrom(scene) {
   const idx = ORDER.indexOf(scene);
