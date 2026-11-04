@@ -9,7 +9,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
 const sleep = ms => new Promise(r => setTimeout(r, FAST ? Math.min(ms, 30) : ms));
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
- 
+
 function freshState() {
   return { v: 1, scene: "prologue", player: { name: "", faculty: "", facultyShort: "", specialty: "", avatar: 0 },
     scoreLog: {}, tasks: {}, glossary: [], stamps: [], club: null, inp: [], saz: null, seenHistory: false, finishedAt: null };
@@ -17,7 +17,7 @@ function freshState() {
 let S = freshState();
 const score = () => Object.values(S.scoreLog).reduce((a, b) => a + b, 0);
 const tpl = s => String(s).replace(/\{name\}/g, S.player.name || "фреше").replace(/\{faculty\}/g, S.player.facultyShort || "ФІ").replace(/\{specialty\}/g, S.player.specialty || "");
- 
+
 /* ---------- Автоозвучка: кожен показаний текст шукає assets/voice/auto/<хеш>.mp3 ---------- */
 const VO_FIXED = { "maryana|У КМА аудиторія записується як корпус-номер. Бачиш стовпець «тижні»? Деякі семінари йдуть не щотижня.": "maryana_sched" };
 const VO = { log: [], seen: {}, videos: {} };
@@ -43,7 +43,7 @@ function save(scene) {
   storeSet(NB_KEY, { glossary: S.glossary, stamps: S.stamps, seenHistory: S.seenHistory });
 }
 function loadSave() { const s = storeGet(SAVE_KEY); return s && s.v === 1 ? s : null; }
- 
+
 /* ---------- Stage scaling ---------- */
 let SCALE = 1;
 function fit() {
@@ -53,12 +53,14 @@ function fit() {
   st.style.transformOrigin = "50% 50%";
 }
 addEventListener("resize", fit);
- 
+
 /* ---------- Background loop ---------- */
 let bgFn = BG.blank, bgT0 = 0, bgImg = null, bgName = "";
 const bgFiles = {};
 function setBg(name) {
   bgName = name; bgFn = BG[name] || BG.blank; bgT0 = performance.now(); bgImg = null;
+  // Святковий двір має анімовані кульки/прапорці, тому не підміняємо Canvas статичним WebP.
+  if (name === "yardFest") return;
   const url = "assets/img/bg_" + name + ".webp";
   if (bgFiles[url] === false) return;
   if (bgFiles[url]) { bgImg = bgFiles[url]; return; }
@@ -75,7 +77,7 @@ function bgLoop(now) {
   if (bgDim > 0) { ctx.fillStyle = `rgba(10,14,30,${bgDim})`; ctx.fillRect(0, 0, W, H); }
   requestAnimationFrame(bgLoop);
 }
- 
+
 /* ---------- NPC ---------- */
 let npcCur = null;
 function showNPC(id, emo = "neutral") {
@@ -87,7 +89,7 @@ function showNPC(id, emo = "neutral") {
   el.className = "idle" + (id === "skovoroda" ? " ghost" : "");
 }
 function hideNPC() { const el = $("#npc"); el.classList.add("off"); npcCur = null; }
- 
+
 /* ---------- Keys ---------- */
 const keyStack = [];
 addEventListener("keydown", e => {
@@ -96,7 +98,7 @@ addEventListener("keydown", e => {
   if (h && h(e) === true) e.preventDefault();
 });
 function pushKeys(fn) { keyStack.push(fn); return () => { const i = keyStack.lastIndexOf(fn); if (i >= 0) keyStack.splice(i, 1); }; }
- 
+
 /* ---------- Dialog ---------- */
 function speakerName(who) { if (!who) return ""; if (who === "me") return S.player.name || "Я"; const n = DATA.npc[who]; return n ? n.name : who; }
 function typeInto(el, text, who, voiceId) {
@@ -202,7 +204,7 @@ async function askScored(who, text, options, correct, o = {}) {
   }
 }
 function hideDialog() { $("#dialog").hidden = true; }
- 
+
 /* ---------- Scoring / HUD ---------- */
 function award(key, pts) {
   if (S.scoreLog[key] !== undefined) return 0;
@@ -221,7 +223,7 @@ function updateHUD() {
   $("#nbBtn .dot").style.visibility = S.glossary.length ? "visible" : "hidden";
 }
 function showHUD(v = true) { $("#hud").hidden = !v; if (v) updateHUD(); }
- 
+
 /* ---------- Toasts / glossary ---------- */
 function toast(html, cls = "") {
   const t = document.createElement("div"); t.className = "toast " + cls; t.innerHTML = html;
@@ -234,7 +236,7 @@ function addWord(id, term, def, cat = "slang", extra = {}) {
   toast(`+1 ${cat === "slang" ? "слово" : "запис"} у Нотатник: <b>${esc(term)}</b>`, "word");
   updateHUD();
 }
- 
+
 /* ---------- Tasks panel ---------- */
 let taskResolver = null;
 function setTasks(title, items, hint = "") {
@@ -251,7 +253,7 @@ function setTasks(title, items, hint = "") {
 function waitTask() { return new Promise(r => { taskResolver = r; }); }
 function hideTasks() { $("#tasks").hidden = true; taskResolver = null; }
 async function slideTasksIn() { const el = $("#tasks"); el.classList.add("out"); el.hidden = false; await sleep(40); el.classList.remove("out"); Sound.sfx("whoosh"); }
- 
+
 /* ---------- Layers ---------- */
 function openLayer(html, cls = "veil") {
   const v = document.createElement("div"); v.className = cls; v.innerHTML = html;
@@ -279,7 +281,7 @@ function layerVoices(v) {
   ids.forEach((id, i) => Sound.voice(id, i ? { queue: true } : undefined));
 }
 function closeLayer(v) { if (v && v.parentNode) v.remove(); }
- 
+
 /* ---------- Title card / fade ---------- */
 async function titleCard(eyebrow, title, ms = 2600) {
   const c = $("#card");
@@ -290,7 +292,7 @@ async function titleCard(eyebrow, title, ms = 2600) {
 }
 async function fadeOut() { $("#fade").classList.add("on"); await sleep(650); }
 async function fadeIn() { $("#fade").classList.remove("on"); await sleep(650); }
- 
+
 /* ---------- Confetti (seeded) ---------- */
 function confetti(ms = 3500) {
   const c = document.createElement("canvas"); c.width = W; c.height = H; c.style.zIndex = 75; c.style.pointerEvents = "none";
@@ -306,7 +308,7 @@ function confetti(ms = 3500) {
     if (el < ms) requestAnimationFrame(f); else c.remove();
   })(t0);
 }
- 
+
 /* ---------- Video (canvas-кліп або MP4 зі слоту) ---------- */
 /** subs: [[від, до, текст], ...] у секундах. draw(ctx, t, dur). */
 function playVideo({ id, dur, draw, subs = [], skippable = true, vertical = false, voice }) {
@@ -339,7 +341,7 @@ function playVideo({ id, dur, draw, subs = [], skippable = true, vertical = fals
     })(t0);
   });
 }
- 
+
 /* ---------- Notebook ---------- */
 function openNotebook(fromTitle = false) {
   const nb = fromTitle ? (storeGet(NB_KEY) || { glossary: [], stamps: [] }) : S;
@@ -368,7 +370,7 @@ function openNotebook(fromTitle = false) {
   $(".close", v).addEventListener("click", close);
   const pop = pushKeys(e => { if (e.key === "Escape") { close(); } return true; });
 }
- 
+
 /* ---------- Speaker hint inside panels ---------- */
 function hintBox(who, text) {
   return `<div class="speaker-hint"><div class="av">${npcSVG(who, "neutral", { head: true })}</div><div><b>${esc(speakerName(who))}</b><span class="ht" data-vo="${voFor(who, text) || ""}">${esc(tpl(text))}</span></div></div>`;
@@ -380,7 +382,7 @@ function setHint(root, who, text, emo = "neutral") {
   const ht = $(".ht", h), vid = voFor(who, text);
   Sound.voice(vid); typeInto(ht, tpl(text), who, vid);
 }
- 
+
 /* ---------- Drag & drop helper (pointer events, працює зі scale) ---------- */
 function draggable(card, { targets, onDrop }) {
   card.addEventListener("pointerdown", e => {
@@ -403,4 +405,3 @@ function draggable(card, { targets, onDrop }) {
     card.addEventListener("pointermove", move); card.addEventListener("pointerup", up); card.addEventListener("pointercancel", up);
   });
 }
- 

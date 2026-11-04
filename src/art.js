@@ -3,7 +3,7 @@
    Код малювання залишено як резерв, якщо зовнішній файл відсутній.
    ========================================================= */
 const W = 1280, H = 720;
- 
+
 /* ---------- Персонажі (SVG) ---------- */
 const CHAR = {
   maryana:   { skin: "#f1c7a5", hair: "#6b2f1a", style: "long",     cloth: "#e0a42b", cloth2: "#c98d12", extra: ["hood", "tote"] },
@@ -22,14 +22,14 @@ const AVATARS = [
   { skin: "#8d5a3c", hair: "#140d0a", style: "buzz",     cloth: "#6b4fa0", cloth2: "#4e3878", label: "Давид" },
   { skin: "#eac09c", hair: "#4a2b1b", style: "ponytail", cloth: "#2b3350", cloth2: "#1b2135", label: "Соля" }
 ];
- 
+
 function shade(hex, k) {
   const n = parseInt(hex.slice(1), 16);
   let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
   r = Math.max(0, Math.min(255, Math.round(r * k))); g = Math.max(0, Math.min(255, Math.round(g * k))); b = Math.max(0, Math.min(255, Math.round(b * k)));
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
- 
+
 function inlineCharSVG(spec, emo = "neutral", opts = {}) {
   const s = spec, ex = s.extra || [], hd = shade(s.hair, 0.8), sk2 = shade(s.skin, 0.9);
   const crop = opts.head ? 'viewBox="70 110 160 160"' : 'viewBox="0 0 300 460"';
@@ -95,7 +95,7 @@ function charSVG(spec, emo = "neutral", opts = {}) {
   return `<img src="${file}" alt="" draggable="false" loading="eager">`;
 }
 function npcSVG(id, emo, opts) { return charSVG(CHAR[id], emo, opts); }
- 
+
 /* SVG → Image для канви (кат-сцени, сертифікат) */
 const imgCache = {};
 function svgImage(key, svg) {
@@ -106,7 +106,7 @@ function svgImage(key, svg) {
   imgCache[key] = im;
   return im;
 }
- 
+
 /* ---------- Канва: допоміжні ---------- */
 function sky(ctx, top, bot, h = H) { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, top); g.addColorStop(1, bot); ctx.fillStyle = g; ctx.fillRect(0, 0, W, h); }
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
@@ -169,7 +169,7 @@ function pigeon(ctx, x, y, t, k) {
   ctx.fillStyle = "#5d6474"; ctx.beginPath(); ctx.arc(x + 9, y - 6 + peck, 5, 0, 7); ctx.fill();
   ctx.fillStyle = "#e0a42b"; ctx.fillRect(x + 13, y - 6 + peck, 3, 2);
 }
- 
+
 /* ---------- Фони ---------- */
 const BG = {};
 const staticCache = {};
@@ -179,7 +179,7 @@ function layer(name, fn) {
   fn(c.getContext("2d")); staticCache[name] = c; return c;
 }
 const STARS = (() => { const r = mulberry32(1632); return Array.from({ length: 90 }, () => [r() * W, r() * 330, r() * 1.6 + 0.4, r() * 6]); })();
- 
+
 BG.title = (ctx, t) => {
   sky(ctx, "#0a0f22", "#27325a");
   STARS.forEach(([x, y, s, p]) => { ctx.fillStyle = `rgba(255,255,255,${0.4 + 0.4 * Math.sin(t * 1.5 + p)})`; ctx.fillRect(x, y, s, s); });
@@ -190,7 +190,7 @@ BG.title = (ctx, t) => {
   ctx.fillStyle = "#0d1326"; ctx.fillRect(0, 550, W, 170);
   for (let i = 0; i < 6; i++) { const x = 40 + i * 240; ctx.fillStyle = "#1a2138"; ctx.fillRect(x, 470, 6, 90); const gl = ctx.createRadialGradient(x + 3, 465, 2, x + 3, 465, 60); gl.addColorStop(0, "rgba(255,210,130,.55)"); gl.addColorStop(1, "rgba(255,210,130,0)"); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x + 3, 465, 60, 0, 7); ctx.fill(); ctx.fillStyle = "#ffd98a"; ctx.beginPath(); ctx.arc(x + 3, 465, 7, 0, 7); ctx.fill(); }
 };
- 
+
 function yardStatic(ctx, mode) {
   const day = mode === "day" || mode === "fest";
   if (day) sky(ctx, "#8fc3e8", "#e6f1f5", 420); else sky(ctx, "#2a2550", "#e08a5a", 420);
@@ -228,10 +228,40 @@ BG.yardEvening = (ctx, t) => {
   ctx.fillStyle = "rgba(180,220,255,.12)";
   for (let i = 0; i < 18; i++) { const x = (i * 83 + t * 12) % W, y = 300 + ((i * 47 + t * 8) % 300); ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, 7); ctx.fill(); }
 };
+// Староакадемічний корпус з нашого погодженого референса, без намальованих UI/кульок.
+const FEST_MOHYLA_BG = new Image();
+FEST_MOHYLA_BG.src = "assets/img/bg_yardFest_background.webp";
 BG.yardFest = (ctx, t) => {
-  ctx.drawImage(layer("yardFest", c => yardStatic(c, "fest")), 0, 0);
-  const cols = ["#3e5aa8", "#c2452d", "#2f7d6d", "#6b4fa0", "#d9a21b"];
-  for (let i = 0; i < 7; i++) { const x = 140 + i * 160, y = 330 - ((t * 30 + i * 60) % 120); ctx.fillStyle = cols[i % 5]; ctx.beginPath(); ctx.ellipse(x, y, 18, 23, 0, 0, 7); ctx.fill(); ctx.strokeStyle = "#444"; ctx.beginPath(); ctx.moveTo(x, y + 23); ctx.lineTo(x + 4, y + 90); ctx.stroke(); }
+  if (FEST_MOHYLA_BG.complete && FEST_MOHYLA_BG.naturalWidth) {
+    ctx.drawImage(FEST_MOHYLA_BG, 0, 0, W, H);
+  } else {
+    ctx.drawImage(layer("yardFest", c => yardStatic(c, "fest")), 0, 0);
+  }
+  // Жовто-сині прапорці — окремий динамічний шар поверх будівлі.
+  for (let k = 0; k < 2; k++) {
+    ctx.strokeStyle = "rgba(30,40,50,.72)"; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(-10, 145 + k * 55);
+    ctx.quadraticCurveTo(W/2, 215 + k * 65, W+10, 145 + k * 55); ctx.stroke();
+    for (let i = 0; i < 30; i++) {
+      const x = i*46-10, q = Math.max(0,Math.min(1,x/W));
+      const y = (1-q)*(1-q)*(145+k*55) + 2*(1-q)*q*(215+k*65) + q*q*(145+k*55);
+      const sway = Math.sin(t*2.5+i*0.8)*3;
+      ctx.fillStyle = i%2 ? "#ffd500" : "#0057b8";
+      ctx.beginPath(); ctx.moveTo(x-11,y); ctx.lineTo(x+11,y);
+      ctx.lineTo(x+sway,y+20); ctx.fill();
+    }
+  }
+  // Анімовані повітряні кульки. Вони більше не запечені всередині WEBP.
+  const cols = ["#3e5aa8", "#c2452d", "#2f7d6d", "#6b4fa0", "#d9a21b", "#2b3350"];
+  for (let i=0; i<8; i++) {
+    const x=100+i*150, by=370+(i%3)*28;
+    const bob=Math.sin(t*1.8 + i*0.9)*10;
+    const y=by+bob;
+    ctx.fillStyle=cols[i%cols.length];
+    ctx.beginPath(); ctx.ellipse(x,y,16,22,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle="rgba(37,36,40,.65)"; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(x,y+22); ctx.lineTo(x+Math.sin(t+i)*5,y+78); ctx.stroke();
+  }
 };
 BG.kmcEntrance = (ctx) => {
   ctx.drawImage(layer("kmcE", c => {
@@ -291,7 +321,7 @@ BG.room = (ctx) => {
   }), 0, 0);
 };
 BG.blank = (ctx) => { ctx.fillStyle = "#141b2e"; ctx.fillRect(0, 0, W, H); };
- 
+
 /* Маленький персонаж зверху (карта, прев'ю аватара) */
 function drawChibi(ctx, a, x, y, dir = "down", phase = null, s = 1) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
@@ -314,4 +344,3 @@ function drawChibi(ctx, a, x, y, dir = "down", phase = null, s = 1) {
   }
   ctx.restore();
 }
- 

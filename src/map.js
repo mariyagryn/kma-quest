@@ -8,6 +8,9 @@ MAP_BG.src = "assets/img/bg_campusMap.webp";
 const MAP_BG_X = 200;
 const MAP_BG_W = 1080;
 const MAP_BG_H = 720;
+// Трамвай — окремий спрайт, а не частина нерухомої карти.
+const MAP_TRAM = new Image();
+MAP_TRAM.src = "assets/img/tram_sprite.png";
 
 const MAP_POINTS = [
   // Корпуси НаУКМА. Координати прив'язані до окремого фону карти.
@@ -78,7 +81,7 @@ const MapView = (() => {
   let target = null, path = [], autoEnter = null;
   const keys = {}, tapped = {};
   let near = null, lastStep = 0, last = 0, dusk = 0, avatar = 0, insideLock = null;
-  let promptEl = null, helpEl = null, legendEl = null;
+  let promptEl = null, helpEl = null, legendEl = null, sidebarEl = null;
   const GRID = 12;
 
   function drawMapBase(ctx) {
@@ -97,6 +100,19 @@ const MapView = (() => {
       ctx.fillStyle = "#d7c9ae"; ctx.fillRect(920, 0, 360, H);
       ctx.fillStyle = "#6d9b58"; ctx.font = "700 18px Manrope, sans-serif"; ctx.textAlign = "center";
       ctx.fillText("Завантаження карти кампусу…", 740, 350);
+    }
+  }
+
+  let tramX = 265;
+  const TRAM_SPEED = 54; // px/с, плавний рух уздовж рейок
+  function drawMovingTram(ctx, dt) {
+    tramX += TRAM_SPEED * dt;
+    if (tramX > W + 200) tramX = 270 - 195;
+    if (MAP_TRAM.complete && MAP_TRAM.naturalWidth) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(300, 0, W - 300, H); ctx.clip();
+      ctx.drawImage(MAP_TRAM, tramX, 638, MAP_TRAM.naturalWidth, MAP_TRAM.naturalHeight);
+      ctx.restore();
     }
   }
 
@@ -303,6 +319,10 @@ const MapView = (() => {
 
     const ctx = cv().getContext("2d");
     drawMapBase(ctx);
+    drawMovingTram(ctx, dt);
+    // Однотонна смуга під інформаційною колонкою: карта не просвічує.
+    ctx.fillStyle = "#13233a";
+    ctx.fillRect(0, 0, 300, H);
     const pts = MAP_POINTS.filter(p => !p.spawnOnly && stateFn(p.id) !== "hidden").sort((a, b) => a.y - b.y);
     let heroDrawn = false;
     for (const p of pts) {
@@ -353,7 +373,10 @@ const MapView = (() => {
     if (!promptEl) {
       promptEl = document.createElement("div"); promptEl.className = "mapprompt"; promptEl.hidden = true; $("#stage").appendChild(promptEl);
       helpEl = document.createElement("div"); helpEl.className = "maphelp"; helpEl.textContent = "WASD / стрілки — ходити · клік — іти до точки · E — увійти"; $("#stage").appendChild(helpEl);
-      legendEl = document.createElement("aside"); legendEl.className = "map-legend"; legendEl.innerHTML = MAP_LEGEND_HTML; legendEl.hidden = true; $("#stage").appendChild(legendEl);
+      sidebarEl = document.createElement("div"); sidebarEl.className = "map-sidebar";
+      $("#stage").appendChild(sidebarEl);
+      legendEl = document.createElement("aside"); legendEl.className = "map-legend"; legendEl.innerHTML = MAP_LEGEND_HTML; legendEl.hidden = true;
+      sidebarEl.appendChild(legendEl);
     }
   }
 
@@ -362,7 +385,11 @@ const MapView = (() => {
       stateFn = fn; avatar = S.player.avatar || 0;
       const c = cv(); c.hidden = false;
       if (!c._bound) { c.addEventListener("click", onClick); c._bound = true; }
-      ensurePanels(); helpEl.hidden = false; legendEl.hidden = false;
+      ensurePanels();
+      $("#stage").classList.add("map-open");
+      sidebarEl.appendChild($("#tasks"));
+      sidebarEl.hidden = false;
+      helpEl.hidden = false; legendEl.hidden = false;
       if (opts.from) {
         const id = normalizeId(opts.from), p = MAP_POINTS.find(p => p.id === id);
         if (p) {
@@ -381,6 +408,11 @@ const MapView = (() => {
       if (promptEl) promptEl.hidden = true;
       if (helpEl) helpEl.hidden = true;
       if (legendEl) legendEl.hidden = true;
+      if (sidebarEl) sidebarEl.hidden = true;
+      $("#stage").classList.remove("map-open");
+      // За межами карти звичайна панель завдань має бути на старому місці.
+      const tasks = $("#tasks");
+      if (tasks && tasks.parentElement !== $("#stage")) $("#stage").appendChild(tasks);
       resolver = null; target = null; path = []; autoEnter = null; near = null;
       Object.keys(keys).forEach(k => keys[k] = false);
     },

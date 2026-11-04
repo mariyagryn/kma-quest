@@ -424,6 +424,29 @@ a.btn{text-decoration:none;justify-content:center}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
 
+
+/* Map v2.1: unified left column; tasks and corpus directory scroll together. */
+#stage.map-open .map-sidebar {
+  position:absolute; left:16px; top:60px; bottom:22px; width:284px;
+  z-index:36; display:flex; flex-direction:column; gap:10px;
+  overflow-x:hidden; overflow-y:auto; box-sizing:border-box;
+  padding:2px 6px 10px 0; scrollbar-width:thin;
+  scrollbar-color:rgba(215,171,57,.65) transparent;
+}
+#stage.map-open .map-sidebar[hidden] { display:none; }
+#stage.map-open .map-sidebar #tasks,
+#stage.map-open .map-sidebar .map-legend {
+  position:relative; top:auto; left:auto; bottom:auto; width:100%;
+  flex:0 0 auto; max-height:none; overflow:visible; box-sizing:border-box;
+  margin:0; box-shadow:0 6px 20px rgba(0,0,0,.22);
+}
+#stage.map-open .map-sidebar #tasks.out { transform:none; }
+#stage.map-open .map-sidebar #tasks[hidden],
+#stage.map-open .map-sidebar .map-legend[hidden] { display:none; }
+#stage.map-open .map-sidebar #tasks { padding:12px 11px; }
+#stage.map-open .map-sidebar #tasks li button { font-size:12px; padding:7px; }
+#stage.map-open .map-sidebar #tasks .hint { font-size:11px; }
+#stage.map-open .map-sidebar .map-legend { padding:12px 11px; }
 </style></head><body>
 <div id="app"><div id="stage">
 <canvas id="bg" width="1280" height="720"></canvas>
@@ -1039,7 +1062,7 @@ const Sound = (() => {
    Код малювання залишено як резерв, якщо зовнішній файл відсутній.
    ========================================================= */
 const W = 1280, H = 720;
- 
+
 /* ---------- Персонажі (SVG) ---------- */
 const CHAR = {
   maryana:   { skin: "#f1c7a5", hair: "#6b2f1a", style: "long",     cloth: "#e0a42b", cloth2: "#c98d12", extra: ["hood", "tote"] },
@@ -1058,14 +1081,14 @@ const AVATARS = [
   { skin: "#8d5a3c", hair: "#140d0a", style: "buzz",     cloth: "#6b4fa0", cloth2: "#4e3878", label: "Давид" },
   { skin: "#eac09c", hair: "#4a2b1b", style: "ponytail", cloth: "#2b3350", cloth2: "#1b2135", label: "Соля" }
 ];
- 
+
 function shade(hex, k) {
   const n = parseInt(hex.slice(1), 16);
   let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
   r = Math.max(0, Math.min(255, Math.round(r * k))); g = Math.max(0, Math.min(255, Math.round(g * k))); b = Math.max(0, Math.min(255, Math.round(b * k)));
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
- 
+
 function inlineCharSVG(spec, emo = "neutral", opts = {}) {
   const s = spec, ex = s.extra || [], hd = shade(s.hair, 0.8), sk2 = shade(s.skin, 0.9);
   const crop = opts.head ? 'viewBox="70 110 160 160"' : 'viewBox="0 0 300 460"';
@@ -1131,7 +1154,7 @@ function charSVG(spec, emo = "neutral", opts = {}) {
   return `<img src="${file}" alt="" draggable="false" loading="eager">`;
 }
 function npcSVG(id, emo, opts) { return charSVG(CHAR[id], emo, opts); }
- 
+
 /* SVG → Image для канви (кат-сцени, сертифікат) */
 const imgCache = {};
 function svgImage(key, svg) {
@@ -1142,7 +1165,7 @@ function svgImage(key, svg) {
   imgCache[key] = im;
   return im;
 }
- 
+
 /* ---------- Канва: допоміжні ---------- */
 function sky(ctx, top, bot, h = H) { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, top); g.addColorStop(1, bot); ctx.fillStyle = g; ctx.fillRect(0, 0, W, h); }
 function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
@@ -1205,7 +1228,7 @@ function pigeon(ctx, x, y, t, k) {
   ctx.fillStyle = "#5d6474"; ctx.beginPath(); ctx.arc(x + 9, y - 6 + peck, 5, 0, 7); ctx.fill();
   ctx.fillStyle = "#e0a42b"; ctx.fillRect(x + 13, y - 6 + peck, 3, 2);
 }
- 
+
 /* ---------- Фони ---------- */
 const BG = {};
 const staticCache = {};
@@ -1215,7 +1238,7 @@ function layer(name, fn) {
   fn(c.getContext("2d")); staticCache[name] = c; return c;
 }
 const STARS = (() => { const r = mulberry32(1632); return Array.from({ length: 90 }, () => [r() * W, r() * 330, r() * 1.6 + 0.4, r() * 6]); })();
- 
+
 BG.title = (ctx, t) => {
   sky(ctx, "#0a0f22", "#27325a");
   STARS.forEach(([x, y, s, p]) => { ctx.fillStyle = `rgba(255,255,255,${0.4 + 0.4 * Math.sin(t * 1.5 + p)})`; ctx.fillRect(x, y, s, s); });
@@ -1226,7 +1249,7 @@ BG.title = (ctx, t) => {
   ctx.fillStyle = "#0d1326"; ctx.fillRect(0, 550, W, 170);
   for (let i = 0; i < 6; i++) { const x = 40 + i * 240; ctx.fillStyle = "#1a2138"; ctx.fillRect(x, 470, 6, 90); const gl = ctx.createRadialGradient(x + 3, 465, 2, x + 3, 465, 60); gl.addColorStop(0, "rgba(255,210,130,.55)"); gl.addColorStop(1, "rgba(255,210,130,0)"); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x + 3, 465, 60, 0, 7); ctx.fill(); ctx.fillStyle = "#ffd98a"; ctx.beginPath(); ctx.arc(x + 3, 465, 7, 0, 7); ctx.fill(); }
 };
- 
+
 function yardStatic(ctx, mode) {
   const day = mode === "day" || mode === "fest";
   if (day) sky(ctx, "#8fc3e8", "#e6f1f5", 420); else sky(ctx, "#2a2550", "#e08a5a", 420);
@@ -1264,10 +1287,40 @@ BG.yardEvening = (ctx, t) => {
   ctx.fillStyle = "rgba(180,220,255,.12)";
   for (let i = 0; i < 18; i++) { const x = (i * 83 + t * 12) % W, y = 300 + ((i * 47 + t * 8) % 300); ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, 7); ctx.fill(); }
 };
+// Староакадемічний корпус з нашого погодженого референса, без намальованих UI/кульок.
+const FEST_MOHYLA_BG = new Image();
+FEST_MOHYLA_BG.src = "assets/img/bg_yardFest_background.webp";
 BG.yardFest = (ctx, t) => {
-  ctx.drawImage(layer("yardFest", c => yardStatic(c, "fest")), 0, 0);
-  const cols = ["#3e5aa8", "#c2452d", "#2f7d6d", "#6b4fa0", "#d9a21b"];
-  for (let i = 0; i < 7; i++) { const x = 140 + i * 160, y = 330 - ((t * 30 + i * 60) % 120); ctx.fillStyle = cols[i % 5]; ctx.beginPath(); ctx.ellipse(x, y, 18, 23, 0, 0, 7); ctx.fill(); ctx.strokeStyle = "#444"; ctx.beginPath(); ctx.moveTo(x, y + 23); ctx.lineTo(x + 4, y + 90); ctx.stroke(); }
+  if (FEST_MOHYLA_BG.complete && FEST_MOHYLA_BG.naturalWidth) {
+    ctx.drawImage(FEST_MOHYLA_BG, 0, 0, W, H);
+  } else {
+    ctx.drawImage(layer("yardFest", c => yardStatic(c, "fest")), 0, 0);
+  }
+  // Жовто-сині прапорці — окремий динамічний шар поверх будівлі.
+  for (let k = 0; k < 2; k++) {
+    ctx.strokeStyle = "rgba(30,40,50,.72)"; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(-10, 145 + k * 55);
+    ctx.quadraticCurveTo(W/2, 215 + k * 65, W+10, 145 + k * 55); ctx.stroke();
+    for (let i = 0; i < 30; i++) {
+      const x = i*46-10, q = Math.max(0,Math.min(1,x/W));
+      const y = (1-q)*(1-q)*(145+k*55) + 2*(1-q)*q*(215+k*65) + q*q*(145+k*55);
+      const sway = Math.sin(t*2.5+i*0.8)*3;
+      ctx.fillStyle = i%2 ? "#ffd500" : "#0057b8";
+      ctx.beginPath(); ctx.moveTo(x-11,y); ctx.lineTo(x+11,y);
+      ctx.lineTo(x+sway,y+20); ctx.fill();
+    }
+  }
+  // Анімовані повітряні кульки. Вони більше не запечені всередині WEBP.
+  const cols = ["#3e5aa8", "#c2452d", "#2f7d6d", "#6b4fa0", "#d9a21b", "#2b3350"];
+  for (let i=0; i<8; i++) {
+    const x=100+i*150, by=370+(i%3)*28;
+    const bob=Math.sin(t*1.8 + i*0.9)*10;
+    const y=by+bob;
+    ctx.fillStyle=cols[i%cols.length];
+    ctx.beginPath(); ctx.ellipse(x,y,16,22,0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle="rgba(37,36,40,.65)"; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(x,y+22); ctx.lineTo(x+Math.sin(t+i)*5,y+78); ctx.stroke();
+  }
 };
 BG.kmcEntrance = (ctx) => {
   ctx.drawImage(layer("kmcE", c => {
@@ -1327,7 +1380,7 @@ BG.room = (ctx) => {
   }), 0, 0);
 };
 BG.blank = (ctx) => { ctx.fillStyle = "#141b2e"; ctx.fillRect(0, 0, W, H); };
- 
+
 /* Маленький персонаж зверху (карта, прев'ю аватара) */
 function drawChibi(ctx, a, x, y, dir = "down", phase = null, s = 1) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
@@ -1350,7 +1403,6 @@ function drawChibi(ctx, a, x, y, dir = "down", phase = null, s = 1) {
   }
   ctx.restore();
 }
- 
 
 /* =========================================================
    Рушій: стан, збереження, сцена, діалоги, HUD, панелі, відео.
@@ -1363,7 +1415,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
 const sleep = ms => new Promise(r => setTimeout(r, FAST ? Math.min(ms, 30) : ms));
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
- 
+
 function freshState() {
   return { v: 1, scene: "prologue", player: { name: "", faculty: "", facultyShort: "", specialty: "", avatar: 0 },
     scoreLog: {}, tasks: {}, glossary: [], stamps: [], club: null, inp: [], saz: null, seenHistory: false, finishedAt: null };
@@ -1371,7 +1423,7 @@ function freshState() {
 let S = freshState();
 const score = () => Object.values(S.scoreLog).reduce((a, b) => a + b, 0);
 const tpl = s => String(s).replace(/\{name\}/g, S.player.name || "фреше").replace(/\{faculty\}/g, S.player.facultyShort || "ФІ").replace(/\{specialty\}/g, S.player.specialty || "");
- 
+
 /* ---------- Автоозвучка: кожен показаний текст шукає assets/voice/auto/<хеш>.mp3 ---------- */
 const VO_FIXED = { "maryana|У КМА аудиторія записується як корпус-номер. Бачиш стовпець «тижні»? Деякі семінари йдуть не щотижня.": "maryana_sched" };
 const VO = { log: [], seen: {}, videos: {} };
@@ -1397,7 +1449,7 @@ function save(scene) {
   storeSet(NB_KEY, { glossary: S.glossary, stamps: S.stamps, seenHistory: S.seenHistory });
 }
 function loadSave() { const s = storeGet(SAVE_KEY); return s && s.v === 1 ? s : null; }
- 
+
 /* ---------- Stage scaling ---------- */
 let SCALE = 1;
 function fit() {
@@ -1407,12 +1459,14 @@ function fit() {
   st.style.transformOrigin = "50% 50%";
 }
 addEventListener("resize", fit);
- 
+
 /* ---------- Background loop ---------- */
 let bgFn = BG.blank, bgT0 = 0, bgImg = null, bgName = "";
 const bgFiles = {};
 function setBg(name) {
   bgName = name; bgFn = BG[name] || BG.blank; bgT0 = performance.now(); bgImg = null;
+  // Святковий двір має анімовані кульки/прапорці, тому не підміняємо Canvas статичним WebP.
+  if (name === "yardFest") return;
   const url = "assets/img/bg_" + name + ".webp";
   if (bgFiles[url] === false) return;
   if (bgFiles[url]) { bgImg = bgFiles[url]; return; }
@@ -1429,7 +1483,7 @@ function bgLoop(now) {
   if (bgDim > 0) { ctx.fillStyle = `rgba(10,14,30,${bgDim})`; ctx.fillRect(0, 0, W, H); }
   requestAnimationFrame(bgLoop);
 }
- 
+
 /* ---------- NPC ---------- */
 let npcCur = null;
 function showNPC(id, emo = "neutral") {
@@ -1441,7 +1495,7 @@ function showNPC(id, emo = "neutral") {
   el.className = "idle" + (id === "skovoroda" ? " ghost" : "");
 }
 function hideNPC() { const el = $("#npc"); el.classList.add("off"); npcCur = null; }
- 
+
 /* ---------- Keys ---------- */
 const keyStack = [];
 addEventListener("keydown", e => {
@@ -1450,7 +1504,7 @@ addEventListener("keydown", e => {
   if (h && h(e) === true) e.preventDefault();
 });
 function pushKeys(fn) { keyStack.push(fn); return () => { const i = keyStack.lastIndexOf(fn); if (i >= 0) keyStack.splice(i, 1); }; }
- 
+
 /* ---------- Dialog ---------- */
 function speakerName(who) { if (!who) return ""; if (who === "me") return S.player.name || "Я"; const n = DATA.npc[who]; return n ? n.name : who; }
 function typeInto(el, text, who, voiceId) {
@@ -1556,7 +1610,7 @@ async function askScored(who, text, options, correct, o = {}) {
   }
 }
 function hideDialog() { $("#dialog").hidden = true; }
- 
+
 /* ---------- Scoring / HUD ---------- */
 function award(key, pts) {
   if (S.scoreLog[key] !== undefined) return 0;
@@ -1575,7 +1629,7 @@ function updateHUD() {
   $("#nbBtn .dot").style.visibility = S.glossary.length ? "visible" : "hidden";
 }
 function showHUD(v = true) { $("#hud").hidden = !v; if (v) updateHUD(); }
- 
+
 /* ---------- Toasts / glossary ---------- */
 function toast(html, cls = "") {
   const t = document.createElement("div"); t.className = "toast " + cls; t.innerHTML = html;
@@ -1588,7 +1642,7 @@ function addWord(id, term, def, cat = "slang", extra = {}) {
   toast(`+1 ${cat === "slang" ? "слово" : "запис"} у Нотатник: <b>${esc(term)}</b>`, "word");
   updateHUD();
 }
- 
+
 /* ---------- Tasks panel ---------- */
 let taskResolver = null;
 function setTasks(title, items, hint = "") {
@@ -1605,7 +1659,7 @@ function setTasks(title, items, hint = "") {
 function waitTask() { return new Promise(r => { taskResolver = r; }); }
 function hideTasks() { $("#tasks").hidden = true; taskResolver = null; }
 async function slideTasksIn() { const el = $("#tasks"); el.classList.add("out"); el.hidden = false; await sleep(40); el.classList.remove("out"); Sound.sfx("whoosh"); }
- 
+
 /* ---------- Layers ---------- */
 function openLayer(html, cls = "veil") {
   const v = document.createElement("div"); v.className = cls; v.innerHTML = html;
@@ -1633,7 +1687,7 @@ function layerVoices(v) {
   ids.forEach((id, i) => Sound.voice(id, i ? { queue: true } : undefined));
 }
 function closeLayer(v) { if (v && v.parentNode) v.remove(); }
- 
+
 /* ---------- Title card / fade ---------- */
 async function titleCard(eyebrow, title, ms = 2600) {
   const c = $("#card");
@@ -1644,7 +1698,7 @@ async function titleCard(eyebrow, title, ms = 2600) {
 }
 async function fadeOut() { $("#fade").classList.add("on"); await sleep(650); }
 async function fadeIn() { $("#fade").classList.remove("on"); await sleep(650); }
- 
+
 /* ---------- Confetti (seeded) ---------- */
 function confetti(ms = 3500) {
   const c = document.createElement("canvas"); c.width = W; c.height = H; c.style.zIndex = 75; c.style.pointerEvents = "none";
@@ -1660,7 +1714,7 @@ function confetti(ms = 3500) {
     if (el < ms) requestAnimationFrame(f); else c.remove();
   })(t0);
 }
- 
+
 /* ---------- Video (canvas-кліп або MP4 зі слоту) ---------- */
 /** subs: [[від, до, текст], ...] у секундах. draw(ctx, t, dur). */
 function playVideo({ id, dur, draw, subs = [], skippable = true, vertical = false, voice }) {
@@ -1693,7 +1747,7 @@ function playVideo({ id, dur, draw, subs = [], skippable = true, vertical = fals
     })(t0);
   });
 }
- 
+
 /* ---------- Notebook ---------- */
 function openNotebook(fromTitle = false) {
   const nb = fromTitle ? (storeGet(NB_KEY) || { glossary: [], stamps: [] }) : S;
@@ -1722,7 +1776,7 @@ function openNotebook(fromTitle = false) {
   $(".close", v).addEventListener("click", close);
   const pop = pushKeys(e => { if (e.key === "Escape") { close(); } return true; });
 }
- 
+
 /* ---------- Speaker hint inside panels ---------- */
 function hintBox(who, text) {
   return `<div class="speaker-hint"><div class="av">${npcSVG(who, "neutral", { head: true })}</div><div><b>${esc(speakerName(who))}</b><span class="ht" data-vo="${voFor(who, text) || ""}">${esc(tpl(text))}</span></div></div>`;
@@ -1734,7 +1788,7 @@ function setHint(root, who, text, emo = "neutral") {
   const ht = $(".ht", h), vid = voFor(who, text);
   Sound.voice(vid); typeInto(ht, tpl(text), who, vid);
 }
- 
+
 /* ---------- Drag & drop helper (pointer events, працює зі scale) ---------- */
 function draggable(card, { targets, onDrop }) {
   card.addEventListener("pointerdown", e => {
@@ -1757,7 +1811,6 @@ function draggable(card, { targets, onDrop }) {
     card.addEventListener("pointermove", move); card.addEventListener("pointerup", up); card.addEventListener("pointercancel", up);
   });
 }
- 
 
 /* =========================================================
    KMA Quest — інтерактивна карта кампусу.
@@ -1769,6 +1822,9 @@ MAP_BG.src = "assets/img/bg_campusMap.webp";
 const MAP_BG_X = 200;
 const MAP_BG_W = 1080;
 const MAP_BG_H = 720;
+// Трамвай — окремий спрайт, а не частина нерухомої карти.
+const MAP_TRAM = new Image();
+MAP_TRAM.src = "assets/img/tram_sprite.png";
 
 const MAP_POINTS = [
   // Корпуси НаУКМА. Координати прив'язані до окремого фону карти.
@@ -1839,7 +1895,7 @@ const MapView = (() => {
   let target = null, path = [], autoEnter = null;
   const keys = {}, tapped = {};
   let near = null, lastStep = 0, last = 0, dusk = 0, avatar = 0, insideLock = null;
-  let promptEl = null, helpEl = null, legendEl = null;
+  let promptEl = null, helpEl = null, legendEl = null, sidebarEl = null;
   const GRID = 12;
 
   function drawMapBase(ctx) {
@@ -1858,6 +1914,19 @@ const MapView = (() => {
       ctx.fillStyle = "#d7c9ae"; ctx.fillRect(920, 0, 360, H);
       ctx.fillStyle = "#6d9b58"; ctx.font = "700 18px Manrope, sans-serif"; ctx.textAlign = "center";
       ctx.fillText("Завантаження карти кампусу…", 740, 350);
+    }
+  }
+
+  let tramX = 265;
+  const TRAM_SPEED = 54; // px/с, плавний рух уздовж рейок
+  function drawMovingTram(ctx, dt) {
+    tramX += TRAM_SPEED * dt;
+    if (tramX > W + 200) tramX = 270 - 195;
+    if (MAP_TRAM.complete && MAP_TRAM.naturalWidth) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(300, 0, W - 300, H); ctx.clip();
+      ctx.drawImage(MAP_TRAM, tramX, 638, MAP_TRAM.naturalWidth, MAP_TRAM.naturalHeight);
+      ctx.restore();
     }
   }
 
@@ -2064,6 +2133,10 @@ const MapView = (() => {
 
     const ctx = cv().getContext("2d");
     drawMapBase(ctx);
+    drawMovingTram(ctx, dt);
+    // Однотонна смуга під інформаційною колонкою: карта не просвічує.
+    ctx.fillStyle = "#13233a";
+    ctx.fillRect(0, 0, 300, H);
     const pts = MAP_POINTS.filter(p => !p.spawnOnly && stateFn(p.id) !== "hidden").sort((a, b) => a.y - b.y);
     let heroDrawn = false;
     for (const p of pts) {
@@ -2114,7 +2187,10 @@ const MapView = (() => {
     if (!promptEl) {
       promptEl = document.createElement("div"); promptEl.className = "mapprompt"; promptEl.hidden = true; $("#stage").appendChild(promptEl);
       helpEl = document.createElement("div"); helpEl.className = "maphelp"; helpEl.textContent = "WASD / стрілки — ходити · клік — іти до точки · E — увійти"; $("#stage").appendChild(helpEl);
-      legendEl = document.createElement("aside"); legendEl.className = "map-legend"; legendEl.innerHTML = MAP_LEGEND_HTML; legendEl.hidden = true; $("#stage").appendChild(legendEl);
+      sidebarEl = document.createElement("div"); sidebarEl.className = "map-sidebar";
+      $("#stage").appendChild(sidebarEl);
+      legendEl = document.createElement("aside"); legendEl.className = "map-legend"; legendEl.innerHTML = MAP_LEGEND_HTML; legendEl.hidden = true;
+      sidebarEl.appendChild(legendEl);
     }
   }
 
@@ -2123,7 +2199,11 @@ const MapView = (() => {
       stateFn = fn; avatar = S.player.avatar || 0;
       const c = cv(); c.hidden = false;
       if (!c._bound) { c.addEventListener("click", onClick); c._bound = true; }
-      ensurePanels(); helpEl.hidden = false; legendEl.hidden = false;
+      ensurePanels();
+      $("#stage").classList.add("map-open");
+      sidebarEl.appendChild($("#tasks"));
+      sidebarEl.hidden = false;
+      helpEl.hidden = false; legendEl.hidden = false;
       if (opts.from) {
         const id = normalizeId(opts.from), p = MAP_POINTS.find(p => p.id === id);
         if (p) {
@@ -2142,6 +2222,11 @@ const MapView = (() => {
       if (promptEl) promptEl.hidden = true;
       if (helpEl) helpEl.hidden = true;
       if (legendEl) legendEl.hidden = true;
+      if (sidebarEl) sidebarEl.hidden = true;
+      $("#stage").classList.remove("map-open");
+      // За межами карти звичайна панель завдань має бути на старому місці.
+      const tasks = $("#tasks");
+      if (tasks && tasks.parentElement !== $("#stage")) $("#stage").appendChild(tasks);
       resolver = null; target = null; path = []; autoEnter = null; near = null;
       Object.keys(keys).forEach(k => keys[k] = false);
     },

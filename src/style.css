@@ -418,3 +418,27 @@ a.btn{text-decoration:none;justify-content:center}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+
+/* Map v2.1: unified left column; tasks and corpus directory scroll together. */
+#stage.map-open .map-sidebar {
+  position:absolute; left:16px; top:60px; bottom:22px; width:284px;
+  z-index:36; display:flex; flex-direction:column; gap:10px;
+  overflow-x:hidden; overflow-y:auto; box-sizing:border-box;
+  padding:2px 6px 10px 0; scrollbar-width:thin;
+  scrollbar-color:rgba(215,171,57,.65) transparent;
+}
+#stage.map-open .map-sidebar[hidden] { display:none; }
+#stage.map-open .map-sidebar #tasks,
+#stage.map-open .map-sidebar .map-legend {
+  position:relative; top:auto; left:auto; bottom:auto; width:100%;
+  flex:0 0 auto; max-height:none; overflow:visible; box-sizing:border-box;
+  margin:0; box-shadow:0 6px 20px rgba(0,0,0,.22);
+}
+#stage.map-open .map-sidebar #tasks.out { transform:none; }
+#stage.map-open .map-sidebar #tasks[hidden],
+#stage.map-open .map-sidebar .map-legend[hidden] { display:none; }
+#stage.map-open .map-sidebar #tasks { padding:12px 11px; }
+#stage.map-open .map-sidebar #tasks li button { font-size:12px; padding:7px; }
+#stage.map-open .map-sidebar #tasks .hint { font-size:11px; }
+#stage.map-open .map-sidebar .map-legend { padding:12px 11px; }
