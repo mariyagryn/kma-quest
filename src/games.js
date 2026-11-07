@@ -15,11 +15,10 @@ function phoneOpen({ title, sub = "", av = "" }) {
       m.className = "msg" + (o.me ? " me" : "") + (o.sys ? " sys" : "") + (o.sticker ? " sticker" : "");
       m.innerHTML = (o.from && !o.me ? `<span class="n">${esc(o.from)}</span>` : "") + esc(tpl(text));
       msgs.appendChild(m); msgs.scrollTop = msgs.scrollHeight;
-      if (!o.me && !o.sys && !o.sticker) { const who = Object.keys(DATA.npc).find(k => DATA.npc[k].name === o.from) || ("chat:" + (o.from || "")); Sound.voice(voFor(who, text), { queue: true }); }
       if (!o.me && !o.sys && !o.silent) Sound.sfx("notif");
       return m;
     },
-    async typing(from, ms = 900) { const m = api.add("друкує…", { sys: true }); m.classList.add("typing"); await sleep(ms); m.remove(); },
+    async typing(from, ms = 900) { const m = api.add("друкує…", { sys: true }); m.classList.add("typing"); await chatWait(ms); m.remove(); },
     replies(opts, correct) {
       return new Promise(res => {
         reply.innerHTML = "";
@@ -288,12 +287,10 @@ function sazGame() {
       main.innerHTML = bar(0) + `<div class="login"><b>Вхід до САЗ</b><label class="field"><label for="sz_l">Логін</label><input id="sz_l" value="${esc(login)}@ukma.edu.ua" readonly></label>
         <label class="field"><label for="sz_p">Пароль</label><input id="sz_p" type="password" value="••••••••" readonly></label><button class="btn" id="sz_in">Увійти</button></div>`;
       $("#sz_in", main).onclick = () => { Sound.sfx("click"); stepSem(); };
-      Sound.voice(voFor(null, "Вхід до САЗ. Натисни «Увійти»."), { queue: true });
     }
     function stepSem() {
       main.innerHTML = bar(1) + `<div class="login"><b>Оберіть семестр</b><select id="sz_s"><option>Осінній семестр 2026/2027</option></select><button class="btn" id="sz_n">Далі</button></div>`;
       $("#sz_n", main).onclick = () => { Sound.sfx("click"); stepCourses(); };
-      Sound.voice(voFor(null, "Оберіть семестр і натисніть «Далі»."));
     }
     function credits() { return DATA.mandatory.reduce((a, b) => a + b.cr, 0) + enrolled.reduce((a, id) => a + byId[id].cr, 0); }
     let triedFull = false, chatPop = null;
@@ -309,8 +306,6 @@ function sazGame() {
     function stepCourses(msg = "") {
       const listIds = paniced ? all.map(c => c.id) : plan;
       const ok = TEST ? okId() : null;
-      const hintTxt = paniced ? "Додайте запасний курс із такою ж кількістю кредитів, як у курсу без місць." : "Додайте дисципліни зі свого ІНП.";
-      if (stepCourses._said !== hintTxt) { stepCourses._said = hintTxt; Sound.voice(voFor(null, hintTxt), { queue: true }); }
       main.innerHTML = bar(2) + `<p style="margin:0 0 10px">${paniced ? `Додайте запасний курс із такою ж кількістю кредитів, як у курсу без місць: «${esc(byId[fullId].c)}» — <b>${fullCr()} кр.</b>` : "Додайте дисципліни зі свого ІНП."} Зараз у плані: <b>${credits()} / 30</b> кр.</p>
         <div class="feedback ${msg ? "bad" : ""}" style="margin:0 0 10px">${esc(msg)}</div>
         <table><thead><tr><th>Дисципліна</th><th>Кредити</th><th>Місця</th><th></th></tr></thead><tbody>
@@ -341,11 +336,11 @@ function sazGame() {
       chatPop = document.createElement("div"); chatPop.className = "chatpop";
       chatPop.innerHTML = `<div class="h">${esc(tpl("{faculty} 1 курс 🔥"))}</div>`;
       main.appendChild(chatPop);
-      const add = (from, t) => { const m = document.createElement("div"); m.className = "msg"; m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`; chatPop.appendChild(m); Sound.sfx("notif"); while (chatPop.children.length > 6) chatPop.children[1].remove(); Sound.voice(voFor(/^Дана/.test(from) ? "dana" : "chat:" + from, t), { queue: true }); };
-      add("Остап", "ЛЮДИ САЗ ЛІГ"); await sleep(900);
-      add("Ліза", "в мене «" + byId[fullId].c + "» 0 місць 😭😭"); await sleep(900);
-      add("Тарас", "все, відрахування"); await sleep(1100);
-      add("Дана (староста)", "Без паніки! Беріть запасний курс з такою ж кількістю кредитів. Сума має лишитися 30."); await sleep(600);
+      const add = (from, t) => { const m = document.createElement("div"); m.className = "msg"; m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`; chatPop.appendChild(m); Sound.sfx("notif"); while (chatPop.children.length > 6) chatPop.children[1].remove(); };
+      add("Остап", "ЛЮДИ САЗ ЛІГ"); await chatWait(900);
+      add("Ліза", "в мене «" + byId[fullId].c + "» 0 місць 😭😭"); await chatWait(900);
+      add("Тарас", "все, відрахування"); await chatWait(1100);
+      add("Дана (староста)", "Без паніки! Беріть запасний курс з такою ж кількістю кредитів. Сума має лишитися 30."); await chatWait(600);
       paniced = true; stepCourses();
     }
     function stepConfirm() {
@@ -355,7 +350,7 @@ function sazGame() {
       $("#sz_f", main).onclick = async () => {
         S.saz = { enrolled: enrolled.slice(), replaced, full: fullId };
         main.innerHTML = `<div style="display:grid;place-items:center;height:100%;text-align:center"><div><div style="font-size:64px">✅</div><h2>Запис успішний</h2><p class="sub">Урок: завжди мати запасний варіант і заходити в САЗ вчасно.</p></div></div>`;
-        confetti(2500); Sound.sfx("ok"); award("ch4_saz", 20); Sound.voice(voFor(null, "Запис успішний. Урок: завжди мати запасний варіант і заходити в САЗ вчасно."));
+        confetti(2500); Sound.sfx("ok"); award("ch4_saz", 20);
         await sleep(2300); closeLayer(v); res();
       };
     }
@@ -446,8 +441,8 @@ function standVisit(club) {
     } else if (club.media === "video") {
       media.innerHTML = `<canvas width="760" height="260" style="cursor:pointer" title="Натисніть, щоб переглянути ще раз"></canvas><div class="cap"></div>`;
       const cv = $("canvas", media), ctx = cv.getContext("2d"), cap = $(".cap", media);
-      const lines = club.voiceLines || [[0, "Бекстейдж: знімаємо інтерв'ю з фрешами біля 3-го корпусу"], [7, "Монтаж — уночі, публікація — до першої пари"], [14, "Анонси всіх подій — у наших соцмережах"]];
-      const DUR = club.voiceDur || 20, trk = standTrack(club, cv);
+      const lines = club.voiceLines || [[0, "Бекстейдж: знімаємо інтерв'ю з фрешами біля 3-го корпусу"], [3.5, "Монтаж — уночі, публікація — до першої пари"], [7, "Анонси всіх подій — у наших соцмережах"]];
+      const DUR = club.voiceDur || 10.5, trk = standTrack(club, cv);
       const t0 = performance.now(); let run = true;
       (function f(now) {
         if (!run) return;
@@ -463,12 +458,10 @@ function standVisit(club) {
       const pics = [["Екскурсія Подолом", (c) => { c.fillStyle = "#e6c27a"; c.fillRect(20, 60, 200, 90); c.fillStyle = "#2f7d6d"; c.fillRect(10, 40, 220, 26); for (let i = 0; i < 5; i++) person(c, 40 + i * 40, 190, 1, ["#3e5aa8", "#c2452d", "#2f7d6d", "#6b4fa0", "#d9a21b"][i]); }],
         ["В архіві Академії", (c) => { c.fillStyle = "#6b4a2b"; c.fillRect(10, 20, 220, 170); for (let r = 0; r < 4; r++) for (let i = 0; i < 12; i++) { c.fillStyle = ["#8c2f3c", "#2f5d4e", "#a8770a"][(i + r) % 3]; c.fillRect(20 + i * 17, 30 + r * 42, 13, 34); } }],
         ["Реконструкція 1632", (c) => { c.fillStyle = "#3e3258"; c.fillRect(0, 0, 240, 200); c.drawImage(svgImage("sk", npcSVG("skovoroda", "happy")), 60, 10, 120, 184); }]];
-      Sound.voice(voFor(null, "Екскурсія Подолом. В архіві Академії. Реконструкція 1632 року."), { queue: true });
       media.innerHTML = `<div class="gallery">${pics.map(p => `<figure><canvas width="240" height="200"></canvas><figcaption>${p[0]}</figcaption></figure>`).join("")}</div>`;
       $$("canvas", media).forEach((c, i) => { const x = c.getContext("2d"); x.fillStyle = "#3a4058"; x.fillRect(0, 0, 240, 200); const draw = () => pics[i][1](x); draw(); setTimeout(draw, 300); });
     } else {
       media.innerHTML = `<canvas width="760" height="260"></canvas>`;
-      Sound.voice(voFor(null, "ПОРУЧ. Відкрита зустріч щочетверга о 18:00 у дворі Староакадемічного корпусу."), { queue: true });
       const ctx = $("canvas", media).getContext("2d"); const t0 = performance.now(); let run = true;
       (function f(now) { if (!run) return; const t = (now - t0) / 1000; ctx.fillStyle = "#ffd500"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#0057b8"; ctx.fillRect(0, 160, 760, 100); ctx.save(); ctx.translate(380, 110); const s = 1 + Math.sin(t * 3) * 0.05; ctx.scale(s, s); ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.moveTo(0, 30); ctx.bezierCurveTo(-60, -10, -40, -60, 0, -30); ctx.bezierCurveTo(40, -60, 60, -10, 0, 30); ctx.fill(); ctx.restore(); ctx.fillStyle = "#141b2e"; ctx.font = "800 30px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("ПОРУЧ", 380, 196); ctx.fillStyle = "#fff"; ctx.font = "700 16px Manrope, sans-serif"; ctx.fillText("Відкрита зустріч щочетверга · 18:00 · двір Староакадемічного", 380, 230); ctx.textAlign = "left"; requestAnimationFrame(f); })(t0);
       stopMedia = () => run = false;

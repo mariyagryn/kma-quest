@@ -8,6 +8,7 @@ const SAVE_KEY = "kmaquest_save_v1", NB_KEY = "kmaquest_notebook_v1";
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
 const sleep = ms => new Promise(r => setTimeout(r, FAST ? Math.min(ms, 30) : ms));
+const chatWait = ms => sleep(ms * 0.5); // паузи між повідомленнями в чатах
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function freshState() {
@@ -18,7 +19,7 @@ let S = freshState();
 const score = () => Object.values(S.scoreLog).reduce((a, b) => a + b, 0);
 const tpl = s => String(s).replace(/\{name\}/g, S.player.name || "фреше").replace(/\{faculty\}/g, S.player.facultyShort || "ФІ").replace(/\{specialty\}/g, S.player.specialty || "");
 
-/* ---------- Автоозвучка: кожен показаний текст шукає assets/voice/auto/<хеш>.mp3 ---------- */
+/* ---------- Озвучка: лише репліки персонажів (assets/voice/auto/<хеш>.mp3). Оповідач, чати, підказки й титри — без голосу ---------- */
 const VO_FIXED = { "maryana|У КМА аудиторія записується як корпус-номер. Бачиш стовпець «тижні»? Деякі семінари йдуть не щотижня.": "maryana_sched" };
 const VO = { log: [], seen: {}, videos: {} };
 function voKey(who, raw) {
@@ -27,7 +28,7 @@ function voKey(who, raw) {
   return "auto/" + h.toString(16).padStart(8, "0");
 }
 function voFor(who, raw) {
-  raw = String(raw || "").trim(); if (!raw) return null;
+  raw = String(raw || "").trim(); if (!raw || !who || who === "me" || !DATA.npc[who]) return null;
   const fixed = VO_FIXED[(who || "narr") + "|" + raw]; if (fixed) return fixed;
   const id = voKey(who, raw);
   if (Q.has("collect") && !VO.seen[id]) { VO.seen[id] = 1; VO.log.push({ id, who: who || null, text: raw }); }
@@ -101,6 +102,10 @@ function pushKeys(fn) { keyStack.push(fn); return () => { const i = keyStack.las
 
 /* ---------- Dialog ---------- */
 function speakerName(who) { if (!who) return ""; if (who === "me") return S.player.name || "Я"; const n = DATA.npc[who]; return n ? n.name : who; }
+const TYPE_STEP = 3;          // символів за крок для тексту без озвучки
+const SILENT_VIDEO_SPEED = 1.5; // відео без голосу йдуть швидше
+const TYPING = new Map();     // тексти, що зараз друкуються: завершити -> час старту
+let dialogAdvance = null;     // перехід до наступної репліки, поки вона на екрані
 function typeInto(el, text, who, voiceId) {
   return new Promise(res => {
     const npc = DATA.npc[who] || {};
@@ -108,7 +113,7 @@ function typeInto(el, text, who, voiceId) {
     let i = 0, done = false; el.textContent = "";
     const t0 = performance.now();
     const show = n => { n = Math.max(i, Math.min(text.length, n)); if (n !== i) { i = n; el.textContent = text.slice(0, i); } };
-    const end = () => { if (done) return; done = true; clearInterval(iv); el.textContent = text; res(); };
+    const end = () => { if (done) return; done = true; TYPING.delete(end); clearInterval(iv); el.textContent = text; res(); };
     // з озвучкою: текст іде синхронно з аудіо (скільки програно — стільки видно)
     const synced = () => {
       if (!voiceId || !Sound.enabled) return false;
@@ -127,37 +132,44 @@ function typeInto(el, text, who, voiceId) {
       const k = synced();
       if (k === "wait") return;
       if (k === "end") { end(); return; }
-      if (k !== false) { show(Math.ceil(text.length * Math.min(1, k))); if (i >= text.length) end(); return; }
-      // без озвучки — як раніше: символ за кроком і «біпи»
-      show(i + 1);
+      if (k !== false) { show(Math.ceil(text.length * Math.min(1, k))); return; } // кінець — лише коли голос договорив
+      // без озвучки — кілька символів за крок і «біпи»
+      show(i + TYPE_STEP);
       if (who && text[i - 1] && text[i - 1] !== " ") Sound.blip(npc.pitch || 1, npc.whisper);
       if (i >= text.length) end();
     }, 22);
-    el._finish = end;
+    el._finish = end; TYPING.set(end, t0);
   });
 }
+// Клік будь-де на сцені: перший показує весь текст, наступний переходить далі. Кнопки й поля працюють як зазвичай.
+$("#stage").addEventListener("click", e => {
+  if (e.target.closest("button:not(.next), a, input, select, textarea, label")) return;
+  const fresh = [...TYPING].filter(([, t0]) => t0 <= e.timeStamp); // клік, що сам запустив репліку, не рахується
+  if (fresh.length) { fresh.forEach(([finish]) => finish()); return; }
+  if (!TYPING.size && dialogAdvance) dialogAdvance();
+});
 /** Репліка. who: id NPC / "me" / null (оповідач). */
 async function say(who, text, o = {}) {
-  o = Object.assign({}, o); if (!o.voice) o.voice = voFor(who, text);
+  o = Object.assign({}, o); if (o.voice === undefined) o.voice = voFor(who, text);
   text = tpl(text);
   const d = $("#dialog"), tx = $(".text", d), ch = $(".choices", d), nx = $(".next", d);
   if (o.sprite !== false && CHAR[who]) showNPC(who, o.emo || "neutral");
   d.hidden = false; ch.innerHTML = ""; nx.hidden = true;
   $(".who", d).textContent = speakerName(who);
   tx.className = "text" + (o.small ? " small" : "") + (!who ? " narr" : "");
-  if (o.voice) Sound.voice(o.voice);
+  if (o.voice) Sound.voice(o.voice); else Sound.stopVoice();
   let typing = true;
   const p = typeInto(tx, text, who, o.voice);
   if (o.voice) { const tag = document.createElement("span"); tag.className = "voice-tag"; tag.textContent = "🔊 озвучено"; p.then(() => setTimeout(() => { if (Sound.hasVoice(o.voice) && tx.isConnected) tx.appendChild(tag); }, 300)); }
   return new Promise(res => {
     const advance = () => {
       if (typing) { tx._finish && tx._finish(); return; }
+      const au = Sound.voiceAudio(); if (o.voice && au && au._id === o.voice) Sound.stopVoice(); // пропуск репліки
       cleanup(); Sound.sfx("click"); res();
     };
-    const onClick = () => advance();
     const pop = pushKeys(e => { if (e.key === " " || e.key === "Enter") { advance(); return true; } });
-    const cleanup = () => { d.removeEventListener("click", onClick); pop(); };
-    d.addEventListener("click", onClick);
+    const cleanup = () => { dialogAdvance = null; pop(); };
+    dialogAdvance = advance;
     p.then(() => { typing = false; nx.hidden = false; if (o.auto) setTimeout(() => { if (!d.hidden) advance(); }, o.auto); });
   });
 }
@@ -169,8 +181,10 @@ async function choose(options, o = {}) {
     $(".who", d).textContent = speakerName(o.who);
     if (o.who && CHAR[o.who] && o.sprite !== false) showNPC(o.who, o.emo || "neutral");
     tx.className = "text" + (!o.who ? " narr" : "");
-    const vid = o.voice || voFor(o.who, o.text); Sound.voice(vid);
+    const vid = o.voice || voFor(o.who, o.text); if (vid) Sound.voice(vid); else Sound.stopVoice();
+    const popType = pushKeys(e => { if (e.key === " " || e.key === "Enter") { tx._finish && tx._finish(); return true; } });
     await typeInto(tx, tpl(o.text), o.who, vid);
+    popType();
   }
   return new Promise(res => {
     options.forEach((t, i) => {
@@ -259,24 +273,8 @@ function openLayer(html, cls = "veil") {
   const v = document.createElement("div"); v.className = cls; v.innerHTML = html;
   $("#layer").appendChild(v); layerVoices(v); return v;
 }
-// реакції міні-ігор (.feedback) — озвучує оповідач, якщо в панелі не говорить персонаж
-(function watchFeedback() {
-  const root = document.getElementById("layer"); if (!root) return;
-  new MutationObserver(ms => {
-    for (const m of ms) {
-      const el = m.target.nodeType === 1 ? m.target : m.target.parentElement;
-      const fbs = el ? (el.matches && el.matches(".feedback") ? [el] : (el.closest && el.closest(".feedback") ? [el.closest(".feedback")] : $$(".feedback", el))) : [];
-      for (const fb of fbs) {
-        const t = fb.textContent.trim(); if (!t || fb._vo === t) continue; fb._vo = t;
-        const panel = fb.closest(".panel"); if (panel && $(".speaker-hint", panel)) continue;
-        Sound.voice(voFor(null, t));
-      }
-    }
-  }).observe(root, { subtree: true, childList: true, characterData: true });
-})();
 function layerVoices(v) {
   const ids = [];
-  $$(".panel > .sub, .panel > div > .sub", v).forEach(el => { const id = voFor(null, el.textContent); if (id) ids.push(id); });
   $$(".ht[data-vo]", v).forEach(el => { if (el.dataset.vo) ids.push(el.dataset.vo); });
   ids.forEach((id, i) => Sound.voice(id, i ? { queue: true } : undefined));
 }
@@ -286,7 +284,7 @@ function closeLayer(v) { if (v && v.parentNode) v.remove(); }
 async function titleCard(eyebrow, title, ms = 2600) {
   const c = $("#card");
   c.innerHTML = `<div class="in"><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(tpl(title))}</h1></div>`;
-  c.classList.add("on"); Sound.sfx("chime"); Sound.voice(voFor(null, eyebrow + ". " + title));
+  c.classList.add("on"); Sound.sfx("chime");
   await sleep(ms);
   c.classList.remove("on"); await sleep(700);
 }
@@ -316,17 +314,16 @@ function playVideo({ id, dur, draw, subs = [], skippable = true, vertical = fals
     const v = openLayer(`<canvas width="${vertical ? 405 : W}" height="720"></canvas><div class="subs"><span></span></div>
       <div class="ctl"><span class="tag">${vertical ? "сторіс" : "відео"} · субтитри</span>${skippable ? `<button class="skip" id="vskip">Пропустити ▸▸</button>` : ""}</div><div class="prog"></div>`, "video" + (vertical ? " vertical" : ""));
     const cv = $("canvas", v), ctx = cv.getContext("2d"), sub = $(".subs span", v), prog = $(".prog", v);
-    const speed = FAST ? 40 : 1;
+    const speed = FAST ? 40 : voice ? 1 : SILENT_VIDEO_SPEED;
     let t0 = performance.now(), done = false, videoEl = null, lastSub = -1;
-    if (!voice && id) { voice = "auto/vid_" + id; if (Q.has("collect")) VO.videos[id] = { dur, subs: subs.map(x => [x[0], x[1], x[2]]) }; }
-    if (voice) Sound.voice(voice);
+    if (voice) Sound.voice(voice); else Sound.stopVoice();
     const finish = () => { if (done) return; done = true; pop(); Sound.stopVoice(); if (videoEl) videoEl.pause(); closeLayer(v); res(); };
     const pop = pushKeys(e => { if (skippable && (e.key === "Escape" || e.key === "Enter")) { finish(); return true; } });
     if (skippable) $("#vskip", v).addEventListener("click", finish);
     // MP4 слот
     if (id && !FAST) {
       const vid = document.createElement("video"); vid.playsInline = true; vid.src = "assets/video/" + id + ".mp4";
-      vid.addEventListener("loadeddata", () => { if (done) return; videoEl = vid; cv.replaceWith(vid); vid.play().catch(() => {}); vid.onended = finish; }, { once: true });
+      vid.addEventListener("loadeddata", () => { if (done) return; videoEl = vid; cv.replaceWith(vid); vid.playbackRate = speed; vid.play().catch(() => {}); vid.onended = finish; }, { once: true });
       vid.addEventListener("error", () => {}, { once: true });
     }
     (function loop(now) {
@@ -362,7 +359,7 @@ function openNotebook(fromTitle = false) {
     let html = items.length ? `<div class="terms">${items.map(g => `<div class="term ${g.wide ? "wide" : ""}"><b>${esc(g.term)}</b>${g.html || esc(g.def)}</div>`).join("")}</div>` : `<div class="empty">Тут поки порожньо. Записи з'являтимуться по ходу гри.</div>`;
     if (cat === "facts" && nb.seenHistory) html += `<p><button class="btn" id="rewatch">▶ Переглянути «400 років за 90 секунд»</button></p>`;
     body.innerHTML = html;
-    const rw = $("#rewatch", body); if (rw) rw.addEventListener("click", () => { closeLayer(v); pop(); playHistoryVideo(true); });
+    const rw = $("#rewatch", body); if (rw) rw.addEventListener("click", () => { closeLayer(v); pop(); playHistoryVideo(); });
   };
   $$(".tabs button", v).forEach(b => b.addEventListener("click", () => { $$(".tabs button", v).forEach(x => x.setAttribute("aria-selected", x === b)); render(b.dataset.t); }));
   render("slang");

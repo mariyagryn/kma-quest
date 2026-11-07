@@ -31,7 +31,7 @@
 | `assets/music/` | 4 музичні теми у MP3 та WAV |
 | `assets/sfx/` | 17 звукових ефектів у MP3 та WAV |
 | `assets/ambience/` | 5 фонових атмосферних звуків у MP3 та WAV |
-| `assets/video/`, `assets/voice/` | папки для майбутніх відеофайлів та озвучення |
+| `assets/video/`, `assets/voice/` | папки для майбутніх відеофайлів та озвучення (голос — лише репліки персонажів; оповідач, чати й підказки йдуть без озвучки) |
 | `scripts/export_graphics.mjs`, `scripts/export_audio.mjs` | відтворення графіки в SVG та звуку у WAV із наявних алгоритмів |
 
 **Важливо:** графіка та музика більше не «заховані» лише у JavaScript: у папках лежать реальні файли, які можна переглянути та замінити. У коді залишено резервне малювання і синтез звуку на випадок, якщо медіафайл відсутній. Анімації сцен, інтерактивні мініігри та переміщення персонажа на карті продовжують виконуватися кодом.
@@ -48,7 +48,7 @@
 
 **Атмосферні звуки** — `assets/ambience/<id>.mp3`: `yard`, `podil`, `office`, `library`, `evening`.
  
-**Озвучка** — `assets/voice/<id>.mp3`: `maryana_01`, `maryana_02`, `maryana_03a`, `maryana_03b`, `maryana_04`, `maryana_05`, `maryana_06`, `maryana_07`, `maryana_sched`, `guard_01`, `guard_02`, `guard_wrong_01`, `guard_wrong_02`, `skovoroda_01`, `skovoroda_02`, `skovoroda_03`, `skovoroda_history`, `olga_01`, `olga_02`, `olga_03`, `librarian_01`, `librarian_02`, `final`, `debate_club` (аудіо стенду Дебатного клубу), `media_club` (відео стенду KMA Today; час реплік — у `src/data.js`, поле `voiceLines`). Текст реплік — у `src/story.js` поруч з id.
+**Озвучка** — `assets/voice/<id>.mp3`: `maryana_01`, `maryana_02`, `maryana_03q`, `maryana_03a`, `maryana_03b`, `maryana_04`, `maryana_05`, `maryana_06`, `maryana_07`, `maryana_sched`, `guard_01`, `guard_02`, `guard_wrong_01`, `guard_wrong_02`, `skovoroda_01`, `skovoroda_02`, `skovoroda_03`, `skovoroda_history`, `olga_01`, `olga_02`, `olga_03`, `librarian_01`, `librarian_02`, `final`, `debate_club` (аудіо стенду Дебатного клубу), `media_club` (відео стенду KMA Today; час реплік — у `src/data.js`, поле `voiceLines`). Текст реплік — у `src/story.js` поруч з id.
  
 **Звукові ефекти** — `assets/sfx/<id>.mp3`: `click`, `ok`, `err`, `notif`, `word`, `print`, `bell`, `step`, `paper`, `shh`, `stamp`, `pop`, `whoosh`, `door`, `vibrate`, `sparkle`, `chime`.
 

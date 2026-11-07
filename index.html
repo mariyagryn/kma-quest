@@ -651,9 +651,6 @@ const DATA = {
       name: "KMA Today",
       short: "KMA Today",
       media: "video",
-      // озвучка: assets/voice/media_club.mp3; час (с) — початок кожної репліки
-      voice: "media_club", voiceDur: 17.5,
-      voiceLines: [[0.4, "Бекстейдж: знімаємо інтерв'ю з фрешами біля 3-го корпусу"], [7.0, "Монтаж — уночі, публікація — до першої пари"], [14.0, "Анонси всіх подій — у наших соцмережах"]],
 
       blurb: "Студентський новинний проєкт від команди Спудейського вісника. Розповідає про життя Могилянки та події навколо неї.",
 
@@ -1414,6 +1411,7 @@ const SAVE_KEY = "kmaquest_save_v1", NB_KEY = "kmaquest_notebook_v1";
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
 const sleep = ms => new Promise(r => setTimeout(r, FAST ? Math.min(ms, 30) : ms));
+const chatWait = ms => sleep(ms * 0.5); // паузи між повідомленнями в чатах
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function freshState() {
@@ -1424,7 +1422,7 @@ let S = freshState();
 const score = () => Object.values(S.scoreLog).reduce((a, b) => a + b, 0);
 const tpl = s => String(s).replace(/\{name\}/g, S.player.name || "фреше").replace(/\{faculty\}/g, S.player.facultyShort || "ФІ").replace(/\{specialty\}/g, S.player.specialty || "");
 
-/* ---------- Автоозвучка: кожен показаний текст шукає assets/voice/auto/<хеш>.mp3 ---------- */
+/* ---------- Озвучка: лише репліки персонажів (assets/voice/auto/<хеш>.mp3). Оповідач, чати, підказки й титри — без голосу ---------- */
 const VO_FIXED = { "maryana|У КМА аудиторія записується як корпус-номер. Бачиш стовпець «тижні»? Деякі семінари йдуть не щотижня.": "maryana_sched" };
 const VO = { log: [], seen: {}, videos: {} };
 function voKey(who, raw) {
@@ -1433,7 +1431,7 @@ function voKey(who, raw) {
   return "auto/" + h.toString(16).padStart(8, "0");
 }
 function voFor(who, raw) {
-  raw = String(raw || "").trim(); if (!raw) return null;
+  raw = String(raw || "").trim(); if (!raw || !who || who === "me" || !DATA.npc[who]) return null;
   const fixed = VO_FIXED[(who || "narr") + "|" + raw]; if (fixed) return fixed;
   const id = voKey(who, raw);
   if (Q.has("collect") && !VO.seen[id]) { VO.seen[id] = 1; VO.log.push({ id, who: who || null, text: raw }); }
@@ -1507,6 +1505,10 @@ function pushKeys(fn) { keyStack.push(fn); return () => { const i = keyStack.las
 
 /* ---------- Dialog ---------- */
 function speakerName(who) { if (!who) return ""; if (who === "me") return S.player.name || "Я"; const n = DATA.npc[who]; return n ? n.name : who; }
+const TYPE_STEP = 3;          // символів за крок для тексту без озвучки
+const SILENT_VIDEO_SPEED = 1.5; // відео без голосу йдуть швидше
+const TYPING = new Map();     // тексти, що зараз друкуються: завершити -> час старту
+let dialogAdvance = null;     // перехід до наступної репліки, поки вона на екрані
 function typeInto(el, text, who, voiceId) {
   return new Promise(res => {
     const npc = DATA.npc[who] || {};
@@ -1514,7 +1516,7 @@ function typeInto(el, text, who, voiceId) {
     let i = 0, done = false; el.textContent = "";
     const t0 = performance.now();
     const show = n => { n = Math.max(i, Math.min(text.length, n)); if (n !== i) { i = n; el.textContent = text.slice(0, i); } };
-    const end = () => { if (done) return; done = true; clearInterval(iv); el.textContent = text; res(); };
+    const end = () => { if (done) return; done = true; TYPING.delete(end); clearInterval(iv); el.textContent = text; res(); };
     // з озвучкою: текст іде синхронно з аудіо (скільки програно — стільки видно)
     const synced = () => {
       if (!voiceId || !Sound.enabled) return false;
@@ -1533,37 +1535,44 @@ function typeInto(el, text, who, voiceId) {
       const k = synced();
       if (k === "wait") return;
       if (k === "end") { end(); return; }
-      if (k !== false) { show(Math.ceil(text.length * Math.min(1, k))); if (i >= text.length) end(); return; }
-      // без озвучки — як раніше: символ за кроком і «біпи»
-      show(i + 1);
+      if (k !== false) { show(Math.ceil(text.length * Math.min(1, k))); return; } // кінець — лише коли голос договорив
+      // без озвучки — кілька символів за крок і «біпи»
+      show(i + TYPE_STEP);
       if (who && text[i - 1] && text[i - 1] !== " ") Sound.blip(npc.pitch || 1, npc.whisper);
       if (i >= text.length) end();
     }, 22);
-    el._finish = end;
+    el._finish = end; TYPING.set(end, t0);
   });
 }
+// Клік будь-де на сцені: перший показує весь текст, наступний переходить далі. Кнопки й поля працюють як зазвичай.
+$("#stage").addEventListener("click", e => {
+  if (e.target.closest("button:not(.next), a, input, select, textarea, label")) return;
+  const fresh = [...TYPING].filter(([, t0]) => t0 <= e.timeStamp); // клік, що сам запустив репліку, не рахується
+  if (fresh.length) { fresh.forEach(([finish]) => finish()); return; }
+  if (!TYPING.size && dialogAdvance) dialogAdvance();
+});
 /** Репліка. who: id NPC / "me" / null (оповідач). */
 async function say(who, text, o = {}) {
-  o = Object.assign({}, o); if (!o.voice) o.voice = voFor(who, text);
+  o = Object.assign({}, o); if (o.voice === undefined) o.voice = voFor(who, text);
   text = tpl(text);
   const d = $("#dialog"), tx = $(".text", d), ch = $(".choices", d), nx = $(".next", d);
   if (o.sprite !== false && CHAR[who]) showNPC(who, o.emo || "neutral");
   d.hidden = false; ch.innerHTML = ""; nx.hidden = true;
   $(".who", d).textContent = speakerName(who);
   tx.className = "text" + (o.small ? " small" : "") + (!who ? " narr" : "");
-  if (o.voice) Sound.voice(o.voice);
+  if (o.voice) Sound.voice(o.voice); else Sound.stopVoice();
   let typing = true;
   const p = typeInto(tx, text, who, o.voice);
   if (o.voice) { const tag = document.createElement("span"); tag.className = "voice-tag"; tag.textContent = "🔊 озвучено"; p.then(() => setTimeout(() => { if (Sound.hasVoice(o.voice) && tx.isConnected) tx.appendChild(tag); }, 300)); }
   return new Promise(res => {
     const advance = () => {
       if (typing) { tx._finish && tx._finish(); return; }
+      const au = Sound.voiceAudio(); if (o.voice && au && au._id === o.voice) Sound.stopVoice(); // пропуск репліки
       cleanup(); Sound.sfx("click"); res();
     };
-    const onClick = () => advance();
     const pop = pushKeys(e => { if (e.key === " " || e.key === "Enter") { advance(); return true; } });
-    const cleanup = () => { d.removeEventListener("click", onClick); pop(); };
-    d.addEventListener("click", onClick);
+    const cleanup = () => { dialogAdvance = null; pop(); };
+    dialogAdvance = advance;
     p.then(() => { typing = false; nx.hidden = false; if (o.auto) setTimeout(() => { if (!d.hidden) advance(); }, o.auto); });
   });
 }
@@ -1575,8 +1584,10 @@ async function choose(options, o = {}) {
     $(".who", d).textContent = speakerName(o.who);
     if (o.who && CHAR[o.who] && o.sprite !== false) showNPC(o.who, o.emo || "neutral");
     tx.className = "text" + (!o.who ? " narr" : "");
-    const vid = o.voice || voFor(o.who, o.text); Sound.voice(vid);
+    const vid = o.voice || voFor(o.who, o.text); if (vid) Sound.voice(vid); else Sound.stopVoice();
+    const popType = pushKeys(e => { if (e.key === " " || e.key === "Enter") { tx._finish && tx._finish(); return true; } });
     await typeInto(tx, tpl(o.text), o.who, vid);
+    popType();
   }
   return new Promise(res => {
     options.forEach((t, i) => {
@@ -1665,24 +1676,8 @@ function openLayer(html, cls = "veil") {
   const v = document.createElement("div"); v.className = cls; v.innerHTML = html;
   $("#layer").appendChild(v); layerVoices(v); return v;
 }
-// реакції міні-ігор (.feedback) — озвучує оповідач, якщо в панелі не говорить персонаж
-(function watchFeedback() {
-  const root = document.getElementById("layer"); if (!root) return;
-  new MutationObserver(ms => {
-    for (const m of ms) {
-      const el = m.target.nodeType === 1 ? m.target : m.target.parentElement;
-      const fbs = el ? (el.matches && el.matches(".feedback") ? [el] : (el.closest && el.closest(".feedback") ? [el.closest(".feedback")] : $$(".feedback", el))) : [];
-      for (const fb of fbs) {
-        const t = fb.textContent.trim(); if (!t || fb._vo === t) continue; fb._vo = t;
-        const panel = fb.closest(".panel"); if (panel && $(".speaker-hint", panel)) continue;
-        Sound.voice(voFor(null, t));
-      }
-    }
-  }).observe(root, { subtree: true, childList: true, characterData: true });
-})();
 function layerVoices(v) {
   const ids = [];
-  $$(".panel > .sub, .panel > div > .sub", v).forEach(el => { const id = voFor(null, el.textContent); if (id) ids.push(id); });
   $$(".ht[data-vo]", v).forEach(el => { if (el.dataset.vo) ids.push(el.dataset.vo); });
   ids.forEach((id, i) => Sound.voice(id, i ? { queue: true } : undefined));
 }
@@ -1692,7 +1687,7 @@ function closeLayer(v) { if (v && v.parentNode) v.remove(); }
 async function titleCard(eyebrow, title, ms = 2600) {
   const c = $("#card");
   c.innerHTML = `<div class="in"><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(tpl(title))}</h1></div>`;
-  c.classList.add("on"); Sound.sfx("chime"); Sound.voice(voFor(null, eyebrow + ". " + title));
+  c.classList.add("on"); Sound.sfx("chime");
   await sleep(ms);
   c.classList.remove("on"); await sleep(700);
 }
@@ -1722,17 +1717,16 @@ function playVideo({ id, dur, draw, subs = [], skippable = true, vertical = fals
     const v = openLayer(`<canvas width="${vertical ? 405 : W}" height="720"></canvas><div class="subs"><span></span></div>
       <div class="ctl"><span class="tag">${vertical ? "сторіс" : "відео"} · субтитри</span>${skippable ? `<button class="skip" id="vskip">Пропустити ▸▸</button>` : ""}</div><div class="prog"></div>`, "video" + (vertical ? " vertical" : ""));
     const cv = $("canvas", v), ctx = cv.getContext("2d"), sub = $(".subs span", v), prog = $(".prog", v);
-    const speed = FAST ? 40 : 1;
+    const speed = FAST ? 40 : voice ? 1 : SILENT_VIDEO_SPEED;
     let t0 = performance.now(), done = false, videoEl = null, lastSub = -1;
-    if (!voice && id) { voice = "auto/vid_" + id; if (Q.has("collect")) VO.videos[id] = { dur, subs: subs.map(x => [x[0], x[1], x[2]]) }; }
-    if (voice) Sound.voice(voice);
+    if (voice) Sound.voice(voice); else Sound.stopVoice();
     const finish = () => { if (done) return; done = true; pop(); Sound.stopVoice(); if (videoEl) videoEl.pause(); closeLayer(v); res(); };
     const pop = pushKeys(e => { if (skippable && (e.key === "Escape" || e.key === "Enter")) { finish(); return true; } });
     if (skippable) $("#vskip", v).addEventListener("click", finish);
     // MP4 слот
     if (id && !FAST) {
       const vid = document.createElement("video"); vid.playsInline = true; vid.src = "assets/video/" + id + ".mp4";
-      vid.addEventListener("loadeddata", () => { if (done) return; videoEl = vid; cv.replaceWith(vid); vid.play().catch(() => {}); vid.onended = finish; }, { once: true });
+      vid.addEventListener("loadeddata", () => { if (done) return; videoEl = vid; cv.replaceWith(vid); vid.playbackRate = speed; vid.play().catch(() => {}); vid.onended = finish; }, { once: true });
       vid.addEventListener("error", () => {}, { once: true });
     }
     (function loop(now) {
@@ -1768,7 +1762,7 @@ function openNotebook(fromTitle = false) {
     let html = items.length ? `<div class="terms">${items.map(g => `<div class="term ${g.wide ? "wide" : ""}"><b>${esc(g.term)}</b>${g.html || esc(g.def)}</div>`).join("")}</div>` : `<div class="empty">Тут поки порожньо. Записи з'являтимуться по ходу гри.</div>`;
     if (cat === "facts" && nb.seenHistory) html += `<p><button class="btn" id="rewatch">▶ Переглянути «400 років за 90 секунд»</button></p>`;
     body.innerHTML = html;
-    const rw = $("#rewatch", body); if (rw) rw.addEventListener("click", () => { closeLayer(v); pop(); playHistoryVideo(true); });
+    const rw = $("#rewatch", body); if (rw) rw.addEventListener("click", () => { closeLayer(v); pop(); playHistoryVideo(); });
   };
   $$(".tabs button", v).forEach(b => b.addEventListener("click", () => { $$(".tabs button", v).forEach(x => x.setAttribute("aria-selected", x === b)); render(b.dataset.t); }));
   render("slang");
@@ -2258,11 +2252,10 @@ function phoneOpen({ title, sub = "", av = "" }) {
       m.className = "msg" + (o.me ? " me" : "") + (o.sys ? " sys" : "") + (o.sticker ? " sticker" : "");
       m.innerHTML = (o.from && !o.me ? `<span class="n">${esc(o.from)}</span>` : "") + esc(tpl(text));
       msgs.appendChild(m); msgs.scrollTop = msgs.scrollHeight;
-      if (!o.me && !o.sys && !o.sticker) { const who = Object.keys(DATA.npc).find(k => DATA.npc[k].name === o.from) || ("chat:" + (o.from || "")); Sound.voice(voFor(who, text), { queue: true }); }
       if (!o.me && !o.sys && !o.silent) Sound.sfx("notif");
       return m;
     },
-    async typing(from, ms = 900) { const m = api.add("друкує…", { sys: true }); m.classList.add("typing"); await sleep(ms); m.remove(); },
+    async typing(from, ms = 900) { const m = api.add("друкує…", { sys: true }); m.classList.add("typing"); await chatWait(ms); m.remove(); },
     replies(opts, correct) {
       return new Promise(res => {
         reply.innerHTML = "";
@@ -2531,12 +2524,10 @@ function sazGame() {
       main.innerHTML = bar(0) + `<div class="login"><b>Вхід до САЗ</b><label class="field"><label for="sz_l">Логін</label><input id="sz_l" value="${esc(login)}@ukma.edu.ua" readonly></label>
         <label class="field"><label for="sz_p">Пароль</label><input id="sz_p" type="password" value="••••••••" readonly></label><button class="btn" id="sz_in">Увійти</button></div>`;
       $("#sz_in", main).onclick = () => { Sound.sfx("click"); stepSem(); };
-      Sound.voice(voFor(null, "Вхід до САЗ. Натисни «Увійти»."), { queue: true });
     }
     function stepSem() {
       main.innerHTML = bar(1) + `<div class="login"><b>Оберіть семестр</b><select id="sz_s"><option>Осінній семестр 2026/2027</option></select><button class="btn" id="sz_n">Далі</button></div>`;
       $("#sz_n", main).onclick = () => { Sound.sfx("click"); stepCourses(); };
-      Sound.voice(voFor(null, "Оберіть семестр і натисніть «Далі»."));
     }
     function credits() { return DATA.mandatory.reduce((a, b) => a + b.cr, 0) + enrolled.reduce((a, id) => a + byId[id].cr, 0); }
     let triedFull = false, chatPop = null;
@@ -2552,8 +2543,6 @@ function sazGame() {
     function stepCourses(msg = "") {
       const listIds = paniced ? all.map(c => c.id) : plan;
       const ok = TEST ? okId() : null;
-      const hintTxt = paniced ? "Додайте запасний курс із такою ж кількістю кредитів, як у курсу без місць." : "Додайте дисципліни зі свого ІНП.";
-      if (stepCourses._said !== hintTxt) { stepCourses._said = hintTxt; Sound.voice(voFor(null, hintTxt), { queue: true }); }
       main.innerHTML = bar(2) + `<p style="margin:0 0 10px">${paniced ? `Додайте запасний курс із такою ж кількістю кредитів, як у курсу без місць: «${esc(byId[fullId].c)}» — <b>${fullCr()} кр.</b>` : "Додайте дисципліни зі свого ІНП."} Зараз у плані: <b>${credits()} / 30</b> кр.</p>
         <div class="feedback ${msg ? "bad" : ""}" style="margin:0 0 10px">${esc(msg)}</div>
         <table><thead><tr><th>Дисципліна</th><th>Кредити</th><th>Місця</th><th></th></tr></thead><tbody>
@@ -2584,11 +2573,11 @@ function sazGame() {
       chatPop = document.createElement("div"); chatPop.className = "chatpop";
       chatPop.innerHTML = `<div class="h">${esc(tpl("{faculty} 1 курс 🔥"))}</div>`;
       main.appendChild(chatPop);
-      const add = (from, t) => { const m = document.createElement("div"); m.className = "msg"; m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`; chatPop.appendChild(m); Sound.sfx("notif"); while (chatPop.children.length > 6) chatPop.children[1].remove(); Sound.voice(voFor(/^Дана/.test(from) ? "dana" : "chat:" + from, t), { queue: true }); };
-      add("Остап", "ЛЮДИ САЗ ЛІГ"); await sleep(900);
-      add("Ліза", "в мене «" + byId[fullId].c + "» 0 місць 😭😭"); await sleep(900);
-      add("Тарас", "все, відрахування"); await sleep(1100);
-      add("Дана (староста)", "Без паніки! Беріть запасний курс з такою ж кількістю кредитів. Сума має лишитися 30."); await sleep(600);
+      const add = (from, t) => { const m = document.createElement("div"); m.className = "msg"; m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`; chatPop.appendChild(m); Sound.sfx("notif"); while (chatPop.children.length > 6) chatPop.children[1].remove(); };
+      add("Остап", "ЛЮДИ САЗ ЛІГ"); await chatWait(900);
+      add("Ліза", "в мене «" + byId[fullId].c + "» 0 місць 😭😭"); await chatWait(900);
+      add("Тарас", "все, відрахування"); await chatWait(1100);
+      add("Дана (староста)", "Без паніки! Беріть запасний курс з такою ж кількістю кредитів. Сума має лишитися 30."); await chatWait(600);
       paniced = true; stepCourses();
     }
     function stepConfirm() {
@@ -2598,7 +2587,7 @@ function sazGame() {
       $("#sz_f", main).onclick = async () => {
         S.saz = { enrolled: enrolled.slice(), replaced, full: fullId };
         main.innerHTML = `<div style="display:grid;place-items:center;height:100%;text-align:center"><div><div style="font-size:64px">✅</div><h2>Запис успішний</h2><p class="sub">Урок: завжди мати запасний варіант і заходити в САЗ вчасно.</p></div></div>`;
-        confetti(2500); Sound.sfx("ok"); award("ch4_saz", 20); Sound.voice(voFor(null, "Запис успішний. Урок: завжди мати запасний варіант і заходити в САЗ вчасно."));
+        confetti(2500); Sound.sfx("ok"); award("ch4_saz", 20);
         await sleep(2300); closeLayer(v); res();
       };
     }
@@ -2689,8 +2678,8 @@ function standVisit(club) {
     } else if (club.media === "video") {
       media.innerHTML = `<canvas width="760" height="260" style="cursor:pointer" title="Натисніть, щоб переглянути ще раз"></canvas><div class="cap"></div>`;
       const cv = $("canvas", media), ctx = cv.getContext("2d"), cap = $(".cap", media);
-      const lines = club.voiceLines || [[0, "Бекстейдж: знімаємо інтерв'ю з фрешами біля 3-го корпусу"], [7, "Монтаж — уночі, публікація — до першої пари"], [14, "Анонси всіх подій — у наших соцмережах"]];
-      const DUR = club.voiceDur || 20, trk = standTrack(club, cv);
+      const lines = club.voiceLines || [[0, "Бекстейдж: знімаємо інтерв'ю з фрешами біля 3-го корпусу"], [3.5, "Монтаж — уночі, публікація — до першої пари"], [7, "Анонси всіх подій — у наших соцмережах"]];
+      const DUR = club.voiceDur || 10.5, trk = standTrack(club, cv);
       const t0 = performance.now(); let run = true;
       (function f(now) {
         if (!run) return;
@@ -2706,12 +2695,10 @@ function standVisit(club) {
       const pics = [["Екскурсія Подолом", (c) => { c.fillStyle = "#e6c27a"; c.fillRect(20, 60, 200, 90); c.fillStyle = "#2f7d6d"; c.fillRect(10, 40, 220, 26); for (let i = 0; i < 5; i++) person(c, 40 + i * 40, 190, 1, ["#3e5aa8", "#c2452d", "#2f7d6d", "#6b4fa0", "#d9a21b"][i]); }],
         ["В архіві Академії", (c) => { c.fillStyle = "#6b4a2b"; c.fillRect(10, 20, 220, 170); for (let r = 0; r < 4; r++) for (let i = 0; i < 12; i++) { c.fillStyle = ["#8c2f3c", "#2f5d4e", "#a8770a"][(i + r) % 3]; c.fillRect(20 + i * 17, 30 + r * 42, 13, 34); } }],
         ["Реконструкція 1632", (c) => { c.fillStyle = "#3e3258"; c.fillRect(0, 0, 240, 200); c.drawImage(svgImage("sk", npcSVG("skovoroda", "happy")), 60, 10, 120, 184); }]];
-      Sound.voice(voFor(null, "Екскурсія Подолом. В архіві Академії. Реконструкція 1632 року."), { queue: true });
       media.innerHTML = `<div class="gallery">${pics.map(p => `<figure><canvas width="240" height="200"></canvas><figcaption>${p[0]}</figcaption></figure>`).join("")}</div>`;
       $$("canvas", media).forEach((c, i) => { const x = c.getContext("2d"); x.fillStyle = "#3a4058"; x.fillRect(0, 0, 240, 200); const draw = () => pics[i][1](x); draw(); setTimeout(draw, 300); });
     } else {
       media.innerHTML = `<canvas width="760" height="260"></canvas>`;
-      Sound.voice(voFor(null, "ПОРУЧ. Відкрита зустріч щочетверга о 18:00 у дворі Староакадемічного корпусу."), { queue: true });
       const ctx = $("canvas", media).getContext("2d"); const t0 = performance.now(); let run = true;
       (function f(now) { if (!run) return; const t = (now - t0) / 1000; ctx.fillStyle = "#ffd500"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#0057b8"; ctx.fillRect(0, 160, 760, 100); ctx.save(); ctx.translate(380, 110); const s = 1 + Math.sin(t * 3) * 0.05; ctx.scale(s, s); ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.moveTo(0, 30); ctx.bezierCurveTo(-60, -10, -40, -60, 0, -30); ctx.bezierCurveTo(40, -60, 60, -10, 0, 30); ctx.fill(); ctx.restore(); ctx.fillStyle = "#141b2e"; ctx.font = "800 30px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("ПОРУЧ", 380, 196); ctx.fillStyle = "#fff"; ctx.font = "700 16px Manrope, sans-serif"; ctx.fillText("Відкрита зустріч щочетверга · 18:00 · двір Староакадемічного", 380, 230); ctx.textAlign = "left"; requestAnimationFrame(f); })(t0);
       stopMedia = () => run = false;
@@ -2865,9 +2852,9 @@ async function prologue() {
   setBg("room"); bgDim = 0.55;
   Sound.startMusic("theme_main");
   const ph = phoneOpen({ title: "Мар'яна · бадді", sub: "у мережі", av: npcSVG("maryana", "happy", { head: true }) });
-  await sleep(600);
+  await chatWait(600);
   for (const m of ["Привіт! Я Мар'яна, твоя бадді 👋", "Бадді — це старшокурсниця, яка допомагає фрешам не загубитись. А фреш — це ти :)", "Розкажи про себе, щоб я знала, кого чекати біля 3-го корпусу."]) {
-    await ph.typing("maryana", 1100); ph.add(m, { from: "Мар'яна" }); await sleep(700);
+    await ph.typing("maryana", 1100); ph.add(m, { from: "Мар'яна" }); await chatWait(700);
   }
   addWord("fresh", "фреш", "першокурсник; так називають новачків", "slang");
   await sleep(400);
@@ -2960,7 +2947,7 @@ async function ch1Intro() {
   Sound.startMusic("theme_campus"); Sound.startAmb("yard");
   await say("maryana", "Ось ти де, {name}! Ласкаво просимо до Могилянки. За твоєю спиною — 3-й корпус Академії. Звідси зручно починати будь-який маршрут кампусом.", { emo: "happy", voice: "maryana_01" });
   await say("maryana", "У тебе сьогодні три справи: додатися в чатик групи, знайти старосту і вивчити нашу мову. Бо тут такий сленг, що без перекладача не розбереш.", { voice: "maryana_02" });
-  const r = await choose(["Що таке СОшка?", "Готовий до всього!"], { who: "maryana", text: "Питання є?" });
+  const r = await choose(["Що таке СОшка?", "Готовий до всього!"], { who: "maryana", text: "Питання є?", voice: "maryana_03q" });
   if (r.i === 0) await say("maryana", "СО — студентська організація, а сошка — ласкаво. Їх тут десятки, ще побачиш.", { emo: "happy", voice: "maryana_03a" });
   else await say("maryana", "От і побачимо, фреше :)", { emo: "happy", voice: "maryana_03b" });
   ch1Tasks(); await slideTasksIn();
@@ -2969,8 +2956,8 @@ async function ch1Intro() {
 async function groupChat() {
   const ph = phoneOpen({ title: "{faculty} 1 курс 🔥", sub: "214 учасників", av: "🔥" });
   ph.add("Мар'яна додала {name} до групи", { sys: true });
-  for (const m of DATA.slang.chat) { await sleep(1200); ph.add(m.text, { from: m.from }); }
-  await sleep(800);
+  for (const m of DATA.slang.chat) { await chatWait(1200); ph.add(m.text, { from: m.from }); }
+  await chatWait(800);
   ph.add("Нічого не зрозуміло?.. Зараз розберемося!", { from: "Мар'яна" });
   await ph.button("Відкрити перекладач ▸");
   ph.el.hidden = true;
@@ -2978,7 +2965,7 @@ async function groupChat() {
   DATA.slang.words.forEach(w => { if (w.id !== "fresh") addWord(w.id, w.term, w.def, "slang"); });
   ph.el.hidden = false;
   ph.add("в КМЦ, звичайно!", { me: true }); Sound.sfx("notif");
-  await sleep(700); ph.add("👍👍", { from: "Остап" });
+  await chatWait(700); ph.add("👍👍", { from: "Остап" });
   await ph.button("Закрити чат");
   ph.close();
   done("ch1_chat"); save();
@@ -2986,21 +2973,21 @@ async function groupChat() {
 async function danaChat() {
   const ph = phoneOpen({ title: "Дана · староста", sub: "у мережі", av: npcSVG("dana", "happy", { head: true }) });
   await ph.typing("dana", 900);
-  ph.add("Привіт! Я Дана, староста нашої групи. Скидаю корисне:", { from: "Дана" }); await sleep(600);
-  ph.add("1) посилання на розклад\n2) пошта деканату\n3) правило: про пропуски пишемо мені заздалегідь", { from: "Дана" }); await sleep(500);
-  ph.add("📌", { sticker: true, silent: true }); await sleep(700);
+  ph.add("Привіт! Я Дана, староста нашої групи. Скидаю корисне:", { from: "Дана" }); await chatWait(600);
+  ph.add("1) посилання на розклад\n2) пошта деканату\n3) правило: про пропуски пишемо мені заздалегідь", { from: "Дана" }); await chatWait(500);
+  ph.add("📌", { sticker: true, silent: true }); await chatWait(700);
   ph.add("Перевірка, щоб ти точно знав(-ла), до кого йти 😉", { from: "Дана" });
   for (let i = 0; i < DATA.whoToAsk.length; i++) {
     const it = DATA.whoToAsk[i]; let tries = 0;
-    await sleep(500); ph.add(`Ситуація ${i + 1}: ${it.q}. До кого звернешся?`, { from: "Дана" });
+    await chatWait(500); ph.add(`Ситуація ${i + 1}: ${it.q}. До кого звернешся?`, { from: "Дана" });
     while (true) {
       const k = await ph.replies(DATA.whoOpts, it.a);
       ph.add(DATA.whoOpts[k], { me: true });
-      if (k === it.a) { award("ch1_who_" + i, tries ? 5 : 10); Sound.sfx("ok"); await sleep(400); ph.add("Так! " + DATA.whoWhy[i], { from: "Дана" }); break; }
-      tries++; Sound.sfx("err"); await sleep(400); ph.add("Не зовсім 🙂 " + DATA.whoWhy[i] + " Спробуєш ще?", { from: "Дана" });
+      if (k === it.a) { award("ch1_who_" + i, tries ? 5 : 10); Sound.sfx("ok"); await chatWait(400); ph.add("Так! " + DATA.whoWhy[i], { from: "Дана" }); break; }
+      tries++; Sound.sfx("err"); await chatWait(400); ph.add("Не зовсім 🙂 " + DATA.whoWhy[i] + " Спробуєш ще?", { from: "Дана" });
     }
   }
-  await sleep(500); ph.add("🎉", { sticker: true, silent: true });
+  await chatWait(500); ph.add("🎉", { sticker: true, silent: true });
   addWord("who", "Хто за що відповідає", "", "guide", { wide: true, html: "<b style='display:inline;font-family:inherit'>Староста</b> — пропуски, розклад, оголошення групи.<br><b style='display:inline;font-family:inherit'>Бадді</b> — СОшки, кампус, «як тут усе влаштовано».<br><b style='display:inline;font-family:inherit'>Деканат</b> — довідки, ІНП, документи. Пошта — у закріпі чату." });
   await ph.button("Дякую, Дано!");
   ph.close();
@@ -3133,7 +3120,7 @@ async function ch2Point(id) {
     if (!T("ch2_hunt_started")) {
       if (id !== DATA.hunt[0].id) { toast("Почни фотоквест із Гіркого: саме його показує перша підказка."); return; }
       done("ch2_hunt_started"); S.hunt = 0;
-      await say("maryana", "О, ти знайшов Гіркий! Тримай мій сторіс-квест: я сфоткала три місця, де ми п'ємо каву й обідаємо між парами. Шукай їх по черзі за підказками.", { sprite: false, voice: "maryana_06" });
+      await say("maryana", "О, ти знайшов кафе! Тримай мій сторіс-квест: я сфоткала три місця, де ми п'ємо каву й обідаємо між парами. Знайди їх усі.", { sprite: false, voice: "maryana_06" });
       hideDialog(); ch2Tasks();
       await showHuntPhoto(0);
     }
@@ -3183,7 +3170,7 @@ function lectureCutscene() {
 }
 
 /* ---------- ГЛАВА 3 ---------- */
-function playHistoryVideo(replay) {
+function playHistoryVideo() {
   const frames = [
     { a: 0, b: 15, y: 1615, bg: ["#3a2a1a", "#b88a4a"] },
     { a: 15, b: 30, y: 1632, bg: ["#2a2a3a", "#8a7a5a"] },
@@ -3199,7 +3186,7 @@ function playHistoryVideo(replay) {
     [65, 75, "1991 рік. Незалежна Україна — і Академія відроджується."], [75, 83, "Двері знову відчинені. У дворі — нові студенти."], [83, 90, "Серед них тепер і ви, студіозусе {name}."]
   ];
   const sk = svgImage("skv", npcSVG("skovoroda", "neutral"));
-  return playVideo({ id: "ch3_history", dur: 90, skippable: !!replay || S.seenHistory, subs, voice: "skovoroda_history",
+  return playVideo({ id: "ch3_history", dur: 90, skippable: true, subs, voice: "skovoroda_history",
     draw(ctx, t) {
       const f = frames.find(fr => t >= fr.a && t < fr.b) || frames[4], k = (t - f.a) / (f.b - f.a);
       const g = ctx.createRadialGradient(640, 360, 100, 640, 360, 800); g.addColorStop(0, f.bg[1]); g.addColorStop(1, f.bg[0]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -3235,7 +3222,7 @@ async function ch3() {
   await say("skovoroda", "Добрий вечір, студіозусе {name}. Я ходив цим двором ще тоді, коли Академія була молодою. Хочеш дізнатися, як усе починалось?", { voice: "skovoroda_01" });
   await choose(["Розкажіть!"], {});
   hideDialog();
-  await playHistoryVideo(false);
+  await playHistoryVideo();
   await say("skovoroda", "Ну як, запам'ятали? Зараз і перевіримо. Дати я поклав вам у Нотатник.", { emo: "happy", voice: "skovoroda_02" });
   save("ch3_hub");
 }
@@ -3256,7 +3243,7 @@ async function ch3Hub() {
     const id = await waitTask();
     if (id === "tl") { await timelineGame(); done("ch3_tl"); save(); }
     if (id === "q") await symbolsQuiz();
-    if (id === "v") await playHistoryVideo(true);
+    if (id === "v") await playHistoryVideo();
     if (id === "stand") await standVisit(histClub);
   }
   ch3Tasks();
@@ -3305,7 +3292,7 @@ async function ch4() {
   let from = S._mapFrom4 || null;
   if (!T("ch4_intro")) {
     MapView.show(ch4State, { from: "stara" }); ch4Tasks();
-    await say("dana", "Всім привіт! Нагадую: до п'ятниці скласти ІНП і записатися в САЗ. Деканат і бібліотеки вже відчинені.", { sprite: false });
+    await say("dana", "Всім привіт! Нагадую: до п'ятниці скласти ІНП і записатися в САЗ. Деканат і бібліотеки вже відчинені.", { sprite: false, voice: false });
     hideDialog(); done("ch4_intro"); save();
   }
   while (!(T("ch4_inp") && T("ch4_saz") && T("ch4_lib"))) {

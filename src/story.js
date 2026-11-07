@@ -87,9 +87,9 @@ async function prologue() {
   setBg("room"); bgDim = 0.55;
   Sound.startMusic("theme_main");
   const ph = phoneOpen({ title: "Мар'яна · бадді", sub: "у мережі", av: npcSVG("maryana", "happy", { head: true }) });
-  await sleep(600);
+  await chatWait(600);
   for (const m of ["Привіт! Я Мар'яна, твоя бадді 👋", "Бадді — це старшокурсниця, яка допомагає фрешам не загубитись. А фреш — це ти :)", "Розкажи про себе, щоб я знала, кого чекати біля 3-го корпусу."]) {
-    await ph.typing("maryana", 1100); ph.add(m, { from: "Мар'яна" }); await sleep(700);
+    await ph.typing("maryana", 1100); ph.add(m, { from: "Мар'яна" }); await chatWait(700);
   }
   addWord("fresh", "фреш", "першокурсник; так називають новачків", "slang");
   await sleep(400);
@@ -182,7 +182,7 @@ async function ch1Intro() {
   Sound.startMusic("theme_campus"); Sound.startAmb("yard");
   await say("maryana", "Ось ти де, {name}! Ласкаво просимо до Могилянки. За твоєю спиною — 3-й корпус Академії. Звідси зручно починати будь-який маршрут кампусом.", { emo: "happy", voice: "maryana_01" });
   await say("maryana", "У тебе сьогодні три справи: додатися в чатик групи, знайти старосту і вивчити нашу мову. Бо тут такий сленг, що без перекладача не розбереш.", { voice: "maryana_02" });
-  const r = await choose(["Що таке СОшка?", "Готовий до всього!"], { who: "maryana", text: "Питання є?" });
+  const r = await choose(["Що таке СОшка?", "Готовий до всього!"], { who: "maryana", text: "Питання є?", voice: "maryana_03q" });
   if (r.i === 0) await say("maryana", "СО — студентська організація, а сошка — ласкаво. Їх тут десятки, ще побачиш.", { emo: "happy", voice: "maryana_03a" });
   else await say("maryana", "От і побачимо, фреше :)", { emo: "happy", voice: "maryana_03b" });
   ch1Tasks(); await slideTasksIn();
@@ -191,8 +191,8 @@ async function ch1Intro() {
 async function groupChat() {
   const ph = phoneOpen({ title: "{faculty} 1 курс 🔥", sub: "214 учасників", av: "🔥" });
   ph.add("Мар'яна додала {name} до групи", { sys: true });
-  for (const m of DATA.slang.chat) { await sleep(1200); ph.add(m.text, { from: m.from }); }
-  await sleep(800);
+  for (const m of DATA.slang.chat) { await chatWait(1200); ph.add(m.text, { from: m.from }); }
+  await chatWait(800);
   ph.add("Нічого не зрозуміло?.. Зараз розберемося!", { from: "Мар'яна" });
   await ph.button("Відкрити перекладач ▸");
   ph.el.hidden = true;
@@ -200,7 +200,7 @@ async function groupChat() {
   DATA.slang.words.forEach(w => { if (w.id !== "fresh") addWord(w.id, w.term, w.def, "slang"); });
   ph.el.hidden = false;
   ph.add("в КМЦ, звичайно!", { me: true }); Sound.sfx("notif");
-  await sleep(700); ph.add("👍👍", { from: "Остап" });
+  await chatWait(700); ph.add("👍👍", { from: "Остап" });
   await ph.button("Закрити чат");
   ph.close();
   done("ch1_chat"); save();
@@ -208,21 +208,21 @@ async function groupChat() {
 async function danaChat() {
   const ph = phoneOpen({ title: "Дана · староста", sub: "у мережі", av: npcSVG("dana", "happy", { head: true }) });
   await ph.typing("dana", 900);
-  ph.add("Привіт! Я Дана, староста нашої групи. Скидаю корисне:", { from: "Дана" }); await sleep(600);
-  ph.add("1) посилання на розклад\n2) пошта деканату\n3) правило: про пропуски пишемо мені заздалегідь", { from: "Дана" }); await sleep(500);
-  ph.add("📌", { sticker: true, silent: true }); await sleep(700);
+  ph.add("Привіт! Я Дана, староста нашої групи. Скидаю корисне:", { from: "Дана" }); await chatWait(600);
+  ph.add("1) посилання на розклад\n2) пошта деканату\n3) правило: про пропуски пишемо мені заздалегідь", { from: "Дана" }); await chatWait(500);
+  ph.add("📌", { sticker: true, silent: true }); await chatWait(700);
   ph.add("Перевірка, щоб ти точно знав(-ла), до кого йти 😉", { from: "Дана" });
   for (let i = 0; i < DATA.whoToAsk.length; i++) {
     const it = DATA.whoToAsk[i]; let tries = 0;
-    await sleep(500); ph.add(`Ситуація ${i + 1}: ${it.q}. До кого звернешся?`, { from: "Дана" });
+    await chatWait(500); ph.add(`Ситуація ${i + 1}: ${it.q}. До кого звернешся?`, { from: "Дана" });
     while (true) {
       const k = await ph.replies(DATA.whoOpts, it.a);
       ph.add(DATA.whoOpts[k], { me: true });
-      if (k === it.a) { award("ch1_who_" + i, tries ? 5 : 10); Sound.sfx("ok"); await sleep(400); ph.add("Так! " + DATA.whoWhy[i], { from: "Дана" }); break; }
-      tries++; Sound.sfx("err"); await sleep(400); ph.add("Не зовсім 🙂 " + DATA.whoWhy[i] + " Спробуєш ще?", { from: "Дана" });
+      if (k === it.a) { award("ch1_who_" + i, tries ? 5 : 10); Sound.sfx("ok"); await chatWait(400); ph.add("Так! " + DATA.whoWhy[i], { from: "Дана" }); break; }
+      tries++; Sound.sfx("err"); await chatWait(400); ph.add("Не зовсім 🙂 " + DATA.whoWhy[i] + " Спробуєш ще?", { from: "Дана" });
     }
   }
-  await sleep(500); ph.add("🎉", { sticker: true, silent: true });
+  await chatWait(500); ph.add("🎉", { sticker: true, silent: true });
   addWord("who", "Хто за що відповідає", "", "guide", { wide: true, html: "<b style='display:inline;font-family:inherit'>Староста</b> — пропуски, розклад, оголошення групи.<br><b style='display:inline;font-family:inherit'>Бадді</b> — СОшки, кампус, «як тут усе влаштовано».<br><b style='display:inline;font-family:inherit'>Деканат</b> — довідки, ІНП, документи. Пошта — у закріпі чату." });
   await ph.button("Дякую, Дано!");
   ph.close();
@@ -355,7 +355,7 @@ async function ch2Point(id) {
     if (!T("ch2_hunt_started")) {
       if (id !== DATA.hunt[0].id) { toast("Почни фотоквест із Гіркого: саме його показує перша підказка."); return; }
       done("ch2_hunt_started"); S.hunt = 0;
-      await say("maryana", "О, ти знайшов Гіркий! Тримай мій сторіс-квест: я сфоткала три місця, де ми п'ємо каву й обідаємо між парами. Шукай їх по черзі за підказками.", { sprite: false, voice: "maryana_06" });
+      await say("maryana", "О, ти знайшов кафе! Тримай мій сторіс-квест: я сфоткала три місця, де ми п'ємо каву й обідаємо між парами. Знайди їх усі.", { sprite: false, voice: "maryana_06" });
       hideDialog(); ch2Tasks();
       await showHuntPhoto(0);
     }
@@ -405,7 +405,7 @@ function lectureCutscene() {
 }
 
 /* ---------- ГЛАВА 3 ---------- */
-function playHistoryVideo(replay) {
+function playHistoryVideo() {
   const frames = [
     { a: 0, b: 15, y: 1615, bg: ["#3a2a1a", "#b88a4a"] },
     { a: 15, b: 30, y: 1632, bg: ["#2a2a3a", "#8a7a5a"] },
@@ -421,7 +421,7 @@ function playHistoryVideo(replay) {
     [65, 75, "1991 рік. Незалежна Україна — і Академія відроджується."], [75, 83, "Двері знову відчинені. У дворі — нові студенти."], [83, 90, "Серед них тепер і ви, студіозусе {name}."]
   ];
   const sk = svgImage("skv", npcSVG("skovoroda", "neutral"));
-  return playVideo({ id: "ch3_history", dur: 90, skippable: !!replay || S.seenHistory, subs, voice: "skovoroda_history",
+  return playVideo({ id: "ch3_history", dur: 90, skippable: true, subs, voice: "skovoroda_history",
     draw(ctx, t) {
       const f = frames.find(fr => t >= fr.a && t < fr.b) || frames[4], k = (t - f.a) / (f.b - f.a);
       const g = ctx.createRadialGradient(640, 360, 100, 640, 360, 800); g.addColorStop(0, f.bg[1]); g.addColorStop(1, f.bg[0]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -457,7 +457,7 @@ async function ch3() {
   await say("skovoroda", "Добрий вечір, студіозусе {name}. Я ходив цим двором ще тоді, коли Академія була молодою. Хочеш дізнатися, як усе починалось?", { voice: "skovoroda_01" });
   await choose(["Розкажіть!"], {});
   hideDialog();
-  await playHistoryVideo(false);
+  await playHistoryVideo();
   await say("skovoroda", "Ну як, запам'ятали? Зараз і перевіримо. Дати я поклав вам у Нотатник.", { emo: "happy", voice: "skovoroda_02" });
   save("ch3_hub");
 }
@@ -478,7 +478,7 @@ async function ch3Hub() {
     const id = await waitTask();
     if (id === "tl") { await timelineGame(); done("ch3_tl"); save(); }
     if (id === "q") await symbolsQuiz();
-    if (id === "v") await playHistoryVideo(true);
+    if (id === "v") await playHistoryVideo();
     if (id === "stand") await standVisit(histClub);
   }
   ch3Tasks();
@@ -527,7 +527,7 @@ async function ch4() {
   let from = S._mapFrom4 || null;
   if (!T("ch4_intro")) {
     MapView.show(ch4State, { from: "stara" }); ch4Tasks();
-    await say("dana", "Всім привіт! Нагадую: до п'ятниці скласти ІНП і записатися в САЗ. Деканат і бібліотеки вже відчинені.", { sprite: false });
+    await say("dana", "Всім привіт! Нагадую: до п'ятниці скласти ІНП і записатися в САЗ. Деканат і бібліотеки вже відчинені.", { sprite: false, voice: false });
     hideDialog(); done("ch4_intro"); save();
   }
   while (!(T("ch4_inp") && T("ch4_saz") && T("ch4_lib"))) {
