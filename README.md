@@ -42,7 +42,7 @@
  
 **Фони** — `assets/img/bg_<назва>.webp`, 1280×720: `title`, `yardDay`, `yardEvening`, `yardFest`, `kmcEntrance`, `dean`, `library`, `room`. Поруч є SVG-версії для редагування. Портрети NPC та аватарів — `assets/img/characters/*.svg` (звичайні та крупні плани, по три емоції).
  
-**Відео** — `assets/video/<id>.mp4` (H.264, 720p): `p1_admission` (25 с), `ch2_lecture` (10 с), `ch3_history` (90 с), `final` (45 с), сторіс `story_girkyi`, `story_puzatka`, `story_kfs`. Субтитри показує гра.
+**Відео** — `assets/video/<id>.mp4` (H.264, 720p): `p1_admission` (25 с), `ch2_lecture` (10 с), `ch3_history` (90 с), `final` (45 с), сторіс `story_girkyi`, `story_puzatka`, `story_silpo`, `story_kfs`. Субтитри показує гра.
  
 **Музика** — `assets/music/<id>.mp3`: `theme_main` (титул), `theme_campus` (одноразово: прибуття в КМА, вибір СО; титри), `theme_baroque` (вечір зі Сковородою, глава 3), `theme_lofi` (карта кампусу), `theme_triumph` (фінал). Як у візуальних новелах, музика звучить лише в ключових сценах і тихо, під голос; решту часу чути атмосферу локації. Повна карта звуку — на початку `src/story.js`.
 

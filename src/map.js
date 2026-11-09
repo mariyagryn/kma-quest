@@ -334,7 +334,7 @@ const MapView = (() => {
     const cols = Math.ceil(W / GRID), rows = Math.ceil(H / GRID);
     const start = nearestWalkableCell(from.x, from.y);
     const goal = nearestWalkableCell(to.x, to.y);
-    if (!start || !goal) return [to];
+    if (!start || !goal) return [];
     const key = (x, y) => y * cols + x;
     const point = id => ({ cx: id % cols, cy: Math.floor(id / cols) });
     const startId = key(start.cx, start.cy), goalId = key(goal.cx, goal.cy);
@@ -366,14 +366,14 @@ const MapView = (() => {
         }
       }
     }
-    if (!found) return [to];
+    if (!found) return [];
     const ids = [goalId];
     while (ids[0] !== startId) {
       const prev = came.get(ids[0]);
       if (prev == null) break;
       ids.unshift(prev);
     }
-    const result = ids.slice(1).map(id => { const c = point(id); return cellCenter(c.cx, c.cy); });
+    const result = ids.map(id => { const c = point(id); return cellCenter(c.cx, c.cy); });
     const finalPoint = blocked(to.x, to.y) ? cellCenter(goal.cx, goal.cy) : to;
     if (!result.length || Math.hypot(result[result.length - 1].x - finalPoint.x, result[result.length - 1].y - finalPoint.y) > 5) result.push(finalPoint);
     return result;
@@ -423,7 +423,7 @@ const MapView = (() => {
     if (dx || dy) { path = []; target = null; autoEnter = null; }
     else if (!uiBusy && path.length) {
       const wp = path[0], vx = wp.x - hero.x, vy = wp.y - hero.y, d = Math.hypot(vx, vy);
-      if (d < 5) {
+      if (d <= Math.max(5, 220 * dt)) {
         hero.x = wp.x; hero.y = wp.y; path.shift();
         if (!path.length && autoEnter) { const id = autoEnter; autoEnter = null; target = null; enter(id); }
       } else { dx = vx / d; dy = vy / d; }
@@ -504,8 +504,8 @@ const MapView = (() => {
     if (p && Math.hypot(hero.x - p.tx, hero.y - p.ty) < 30) { enter(p.id); return; }
     const destination = p ? { x: p.tx, y: p.ty } : { x, y };
     path = findPath(hero, destination);
-    target = destination;
-    autoEnter = p ? p.id : null;
+    target = path.length ? path[path.length - 1] : null;
+    autoEnter = path.length && p ? p.id : null;
   }
 
   function ensurePanels() {
