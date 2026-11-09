@@ -81,7 +81,8 @@ function panelQuiz(root, items, { who, keyPrefix, onDone, qSel = ".qz" }) {
           award(keyPrefix + qi, tries ? 5 : 10); Sound.sfx("ok");
           fb.className = "feedback ok"; fb.textContent = it.ok || "Правильно!";
           if (who) setHint(root, who, it.ok || "Так, усе правильно!", "happy");
-          setTimeout(() => { qi++; if (qi < items.length) render(); else { onDone && onDone(); res(); } }, FAST ? 10 : 1100);
+          if (qi === items.length - 1 && onDone) onDone();
+          setTimeout(() => { qi++; if (qi < items.length) render(); else res(); }, FAST ? 10 : 1100);
         } else {
           tries++; b.classList.add("wrong"); b.disabled = true; Sound.sfx("err");
           fb.className = "feedback bad"; fb.textContent = it.why || "Не зовсім. Спробуй ще раз.";
@@ -144,11 +145,11 @@ function drawPhoto(ctx, id) {
     for (let i = 0; i < 22; i++) { ctx.fillStyle = i % 2 ? "#c2452d" : "#2b2b2b"; const x = i * 32; ctx.beginPath(); ctx.moveTo(x, 260); ctx.lineTo(x + 16, 244); ctx.lineTo(x + 32, 260); ctx.lineTo(x + 16, 276); ctx.fill(); }
     ctx.fillStyle = "#f7f4ee"; ctx.fillRect(0, 290, w, 80);
   } else {
-    for (let i = 0; i < 14; i++) { ctx.fillStyle = i % 2 ? "#f7f4ee" : "#d8342a"; ctx.fillRect(i * 50, 0, 50, 140); }
+    for (let i = 0; i < 14; i++) { ctx.fillStyle = i % 2 ? "#f7f4ee" : id === "kfs" ? "#d8342a" : "#e0a42b"; ctx.fillRect(i * 50, 0, 50, 140); }
     ctx.fillStyle = "#9ec3d6"; ctx.fillRect(0, 140, w, 230);
     ctx.fillStyle = "rgba(255,255,255,.35)"; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(i * 150, 370); ctx.lineTo(i * 150 + 60, 140); ctx.lineTo(i * 150 + 90, 140); ctx.lineTo(i * 150 + 30, 370); ctx.fill(); }
     ctx.fillStyle = "#f08a24"; rr(ctx, 380, 170, 300, 80, 10); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.font = "800 54px Unbounded, sans-serif"; ctx.textAlign = "left"; ctx.fillText("СІЛ…", 400, 230);
+    ctx.fillStyle = "#fff"; ctx.font = "800 54px Unbounded, sans-serif"; ctx.textAlign = "left"; ctx.fillText(id === "kfs" ? "🍟" : "СІЛ…", 400, 230);
   }
   ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(0, 0, w, h); // "фото" тон
 }
@@ -167,8 +168,8 @@ function showHuntPhoto(i) {
   });
 }
 function huntStory(i) {
-  const h = DATA.hunt[i], pal = { girkyi: ["#5a3b22", "#c98d5a"], puzatka: ["#8a5a2b", "#e0a42b"], kfs: ["#c2452d", "#f08a24"] }[h.id];
-  const icon = { girkyi: "☕", puzatka: "🍲", kfs: "🥪" }[h.id];
+  const h = DATA.hunt[i], pal = { girkyi: ["#5a3b22", "#c98d5a"], puzatka: ["#8a5a2b", "#e0a42b"], silpo: ["#925819", "#e0a42b"], kfs: ["#c2452d", "#f08a24"] }[h.id];
+  const icon = { girkyi: "☕", puzatka: "🍲", silpo: "🛒", kfs: "🍟" }[h.id];
   return playVideo({ id: "story_" + h.id, dur: 9, vertical: true, subs: [[0, 3, h.story[0]], [3, 6, h.story[1]], [6, 9, h.story[2]]],
     draw(ctx, t) {
       const g = ctx.createLinearGradient(0, 0, 0, 720); g.addColorStop(0, pal[0]); g.addColorStop(1, pal[1]); ctx.fillStyle = g; ctx.fillRect(0, 0, 405, 720);
@@ -318,7 +319,7 @@ function sazGame() {
         ${credits() === 30 && triedFull ? `<div style="margin-top:12px"><button class="btn gold" id="sz_c" data-ok="1">Підтвердити запис</button></div>` : ""}`;
       $$(".sbtn", main).forEach(b => b.onclick = () => enroll(b.dataset.id));
       const c = $("#sz_c", main); if (c) c.onclick = () => stepConfirm();
-      if (chatPop) { if (paniced) { chatPop.classList.add("docked"); main.insertBefore(chatPop, $("table", main)); } else main.appendChild(chatPop); }
+      if (chatPop) main.insertBefore(chatPop, $("table", main));
     }
     async function enroll(id) {
       Sound.sfx("click");
@@ -333,10 +334,18 @@ function sazGame() {
       enrolled.push(id); Sound.sfx("ok"); stepCourses();
     }
     async function panic() {
-      chatPop = document.createElement("div"); chatPop.className = "chatpop";
-      chatPop.innerHTML = `<div class="h">${esc(tpl("{faculty} 1 курс 🔥"))}</div>`;
-      main.appendChild(chatPop);
-      const add = (from, t) => { const m = document.createElement("div"); m.className = "msg"; m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`; chatPop.appendChild(m); Sound.sfx("notif"); while (chatPop.children.length > 6) chatPop.children[1].remove(); };
+      chatPop = document.createElement("details"); chatPop.className = "chatpop";
+      chatPop.open = true;
+      chatPop.innerHTML = `<summary>${esc(tpl("{faculty} 1 курс 🔥"))}</summary><div class="messages"></div>`;
+      main.insertBefore(chatPop, $("table", main));
+      const messages = $(".messages", chatPop);
+      const add = (from, t) => {
+        const m = document.createElement("div");
+        m.className = "msg";
+        m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`;
+        messages.appendChild(m);
+        Sound.sfx("notif");
+      };
       add("Остап", "ЛЮДИ САЗ ЛІГ"); await chatWait(900);
       add("Ліза", "в мене «" + byId[fullId].c + "» 0 місць 😭😭"); await chatWait(900);
       add("Тарас", "все, відрахування"); await chatWait(1100);
@@ -413,7 +422,7 @@ function standTrack(club, cv) {
 function standVisit(club) {
   return new Promise(res => {
     const done = S.stamps.includes(club.id);
-    const v = openLayer(`<div class="panel stand"><button class="close" aria-label="Закрити">✕</button><div class="eyebrow">${club.id === "media" ? "Медіапроєкт · 1-й корпус" : `Стенд СО · Глава ${club.ch}`}</div><h2>${esc(club.name)}</h2><p class="sub" style="margin:0">${esc(club.blurb)}</p>
+    const v = openLayer(`<div class="panel stand"><button class="close" aria-label="Закрити">✕</button><div class="eyebrow">${club.id === "media" ? "Медіапроєкт · 1-й корпус" : club.ch ? `Стенд СО · Глава ${club.ch}` : "Студентська організація"}</div><h2>${esc(club.name)}</h2><p class="sub" style="margin:0">${esc(club.blurb)}</p>
       <div class="media" id="media"></div><div class="qz"></div></div>`);
     const media = $("#media", v);
     let stopMedia = () => {};
@@ -460,7 +469,7 @@ function standVisit(club) {
         ["Реконструкція 1632", (c) => { c.fillStyle = "#3e3258"; c.fillRect(0, 0, 240, 200); c.drawImage(svgImage("sk", npcSVG("skovoroda", "happy")), 60, 10, 120, 184); }]];
       media.innerHTML = `<div class="gallery">${pics.map(p => `<figure><canvas width="240" height="200"></canvas><figcaption>${p[0]}</figcaption></figure>`).join("")}</div>`;
       $$("canvas", media).forEach((c, i) => { const x = c.getContext("2d"); x.fillStyle = "#3a4058"; x.fillRect(0, 0, 240, 200); const draw = () => pics[i][1](x); draw(); setTimeout(draw, 300); });
-    } else {
+    } else if (club.media === "poster") {
       media.innerHTML = `<canvas width="760" height="260"></canvas>`;
       const ctx = $("canvas", media).getContext("2d"); const t0 = performance.now(); let run = true;
       (function f(now) { if (!run) return; const t = (now - t0) / 1000; ctx.fillStyle = "#ffd500"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#0057b8"; ctx.fillRect(0, 160, 760, 100); ctx.save(); ctx.translate(380, 110); const s = 1 + Math.sin(t * 3) * 0.05; ctx.scale(s, s); ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.moveTo(0, 30); ctx.bezierCurveTo(-60, -10, -40, -60, 0, -30); ctx.bezierCurveTo(40, -60, 60, -10, 0, 30); ctx.fill(); ctx.restore(); ctx.fillStyle = "#141b2e"; ctx.font = "800 30px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("ПОРУЧ", 380, 196); ctx.fillStyle = "#fff"; ctx.font = "700 16px Manrope, sans-serif"; ctx.fillText("Відкрита зустріч щочетверга · 18:00 · двір Староакадемічного", 380, 230); ctx.textAlign = "left"; requestAnimationFrame(f); })(t0);
@@ -469,14 +478,16 @@ function standVisit(club) {
     const close = () => { stopMedia(); pop(); closeLayer(v); res(); };
     $(".close", v).addEventListener("click", close);
     const pop = pushKeys(e => { if (e.key === "Escape") close(); return false; });
+    if (!club.q) { media.hidden = true; return; }
     if (done) { $(".qz", v).innerHTML = `<div class="feedback ok">Штамп «${esc(club.short)}» уже у твоєму Нотатнику.</div>`; return; }
-    panelQuiz(v, [{ q: club.q, o: club.o, a: club.a, ok: "Правильно! Тримай штамп.", why: "Не зовсім. Подумай ще." }], { keyPrefix: "stamp_" + club.id + "_" }).then(() => {
+    panelQuiz(v, [{ q: club.q, o: club.o, a: club.a, ok: "Правильно! Тримай штамп.", why: "Не зовсім. Подумай ще." }], { keyPrefix: "stamp_" + club.id + "_", onDone: () => {
       // одна відповідь = один ключ stamp_<id>_0 (10 або 5)
+      if (S.stamps.includes(club.id)) return;
       S.stamps.push(club.id); Sound.sfx("stamp");
       toast(`Штамп СО: <b>${esc(club.short)}</b>`, "word");
       $(".qz", v).innerHTML = `<div style="display:flex;gap:16px;align-items:center"><div class="stamp on" style="width:110px"><span><b>${esc(club.short)}</b>штамп</span></div><div class="feedback ok">Штамп додано на сторінку «Спільнота» в Нотатнику.</div></div>`;
       save();
-    });
+    } });
   });
 }
 
@@ -484,9 +495,31 @@ function standVisit(club) {
 function clubChoice() {
   return new Promise(res => {
     const v = openLayer(`<div class="panel quiz" style="width:1000px"><div class="eyebrow">Глава 4 · фінальний вибір</div><h2>Куди хочеш долучитися?</h2>
-      <p class="sub">Можна обрати будь-яку СОшку, навіть якщо ти не був біля її стенду. Вибір з'явиться у фіналі й на сертифікаті.</p>
-      <div class="clubs">${DATA.clubs.map(c => `<button data-id="${c.id}" data-ok="1"><b>${esc(c.name)}</b><span>${esc(c.blurb)}</span>${S.stamps.includes(c.id) ? '<span class="st">✓ є штамп</span>' : ""}</button>`).join("")}</div></div>`);
-    $$(".clubs button", v).forEach(b => b.onclick = () => { Sound.sfx("ok"); S.club = b.dataset.id; closeLayer(v); res(b.dataset.id); });
+      <p class="sub">Переглянь стенди СО, а потім обери організацію для сертифіката.</p>
+      <div class="clubs">${DATA.clubs.map(c => `<button data-id="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.blurb)}</span><span class="st"></span></button>`).join("")}</div>
+      <div class="club-actions"><label for="clubSelect">Мій вибір</label><select id="clubSelect"><option value="">Обери організацію</option>${DATA.clubs.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>
+      <button class="btn gold" id="clubConfirm" disabled>Підтвердити й перейти до фіналу</button></div></div>`);
+    const select = $("#clubSelect", v), confirm = $("#clubConfirm", v);
+    const buttons = $$(".clubs button", v);
+    const refreshStamps = () => buttons.forEach(b => {
+      $(".st", b).textContent = S.stamps.includes(b.dataset.id) ? "✓ є штамп" : "";
+    });
+    refreshStamps();
+    buttons.forEach(b => b.onclick = async () => {
+      v.hidden = true;
+      await standVisit(DATA.clubs.find(c => c.id === b.dataset.id));
+      refreshStamps();
+      v.hidden = false;
+      b.focus();
+    });
+    select.onchange = () => { confirm.disabled = !select.value; };
+    confirm.onclick = () => {
+      if (!select.value) return;
+      Sound.sfx("ok");
+      S.club = select.value;
+      closeLayer(v);
+      res(S.club);
+    };
   });
 }
 

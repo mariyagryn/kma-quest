@@ -67,7 +67,7 @@ button:focus-visible,[tabindex]:focus-visible,input:focus-visible,select:focus-v
 #tasks li .box{width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);display:grid;place-items:center;font-size:12px;font-weight:800;margin-top:1px}
 #tasks li.done .box{background:var(--patina);border-color:var(--patina);color:#fff}
 #tasks li.done .t{text-decoration:line-through;color:var(--muted)}
-#tasks li.opt .t::after{content:" В· РЅРµРѕР±РѕРІ'СЏР·РєРѕРІРѕ";color:var(--muted);font-size:11px}
+#tasks li.opt .t::after{content:" · необов’язково";color:var(--muted);font-size:11px}
 #tasks li .t small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 #tasks .hint{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.35}
 
@@ -227,7 +227,7 @@ a.btn{text-decoration:none;justify-content:center}
 .tl-pool .card{width:196px;font-family:var(--f-body);font-weight:600;font-size:13px;line-height:1.35;padding:10px 12px}
 .tl-line{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;position:relative;padding-top:26px}
 .tl-line::before{content:"";position:absolute;left:0;right:0;top:10px;height:4px;background:linear-gradient(90deg,var(--gold-deep),var(--gold));border-radius:2px}
-.tl-line::after{content:"СЂР°РЅС–С€Рµ в†’ РїС–Р·РЅС–С€Рµ";position:absolute;right:0;top:-12px;font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;font-weight:700}
+.tl-line::after{content:"раніше → пізніше";position:absolute;right:0;top:-12px;font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;font-weight:700}
 .tl-slot{min-height:110px;border:2px dashed #c7bfae;border-radius:10px;background:#fff;position:relative;display:flex;flex-direction:column;padding:6px}
 .tl-slot::before{content:"";position:absolute;top:-22px;left:50%;width:12px;height:12px;border-radius:50%;background:var(--paper);border:3px solid var(--gold-deep);transform:translateX(-50%)}
 .tl-slot .yr{font-family:var(--f-display);font-weight:800;font-size:18px;color:var(--patina);text-align:center;min-height:24px}
@@ -287,7 +287,7 @@ a.btn{text-decoration:none;justify-content:center}
 .video .ctl .tag{font-size:12px;color:rgba(255,255,255,.6);letter-spacing:.1em;text-transform:uppercase}
 .video .prog{position:absolute;left:0;bottom:0;height:4px;background:var(--gold);width:0}
 .video .skip{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:18px;padding:7px 16px;font-size:13px;font-weight:600}
-.video.vertical canvas{left:50%;width:405px;transform:translateX(-50%)}
+#stage .video.vertical > canvas,#stage .video.vertical > video{inset:0 auto 0 50%;width:405px;transform:translateX(-50%);object-fit:contain}
 
 /* notebook */
 .nb{width:1000px;height:600px;padding:26px 30px;display:flex;flex-direction:column;box-sizing:border-box;background:var(--paper);background-image:repeating-linear-gradient(180deg,transparent 0 31px,rgba(47,125,109,.12) 31px 32px)}
@@ -356,13 +356,11 @@ a.btn{text-decoration:none;justify-content:center}
 .saz td .in{color:var(--patina);font-weight:800}
 .saz .login{max-width:360px;margin:50px auto;background:#fff;padding:24px;border-radius:12px;display:flex;flex-direction:column;gap:12px;box-shadow:0 4px 18px rgba(0,0,0,.06)}
 .saz .login input,.saz .login select{font:inherit;padding:10px;border-radius:8px;border:1px solid #cdd4e0}
-.saz .chatpop{position:absolute;right:20px;bottom:20px;width:330px;background:#fff;border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.25);padding:10px;display:flex;flex-direction:column;gap:6px;max-height:330px;overflow:hidden}
-.saz .chatpop .h{font-size:12px;font-weight:800;color:var(--muted);padding:2px 4px}
-.saz .chatpop .msg{max-width:95%}
-.saz .chatpop.docked{position:static;width:auto;max-height:none;box-shadow:none;border:1px solid #dfe3ec;margin:0 0 12px;flex-direction:row;flex-wrap:wrap;align-items:flex-start}
-.saz .chatpop.docked .h{width:100%}
-.saz .chatpop.docked .msg{max-width:none;flex:1 1 200px}
-.saz .chatpop.docked .msg:not(:last-child){display:none}
+.saz .chatpop{background:#fff;border:1px solid #dfe3ec;border-radius:14px;padding:8px 10px;margin:0 0 12px}
+.saz .chatpop summary{font-size:12px;font-weight:800;color:var(--muted);cursor:pointer}
+.saz .chatpop:not([open]) .messages{display:none}
+.saz .chatpop .messages{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.saz .chatpop .msg{flex:1 1 200px;max-width:none}
 
 /* library */
 .catalog{width:900px;padding:26px 30px}
@@ -447,6 +445,8 @@ a.btn{text-decoration:none;justify-content:center}
 #stage.map-open .map-sidebar #tasks li button { font-size:12px; padding:7px; }
 #stage.map-open .map-sidebar #tasks .hint { font-size:11px; }
 #stage.map-open .map-sidebar .map-legend { padding:12px 11px; }
+.club-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:16px}
+
 </style></head><body>
 <div id="app"><div id="stage">
 <canvas id="bg" width="1280" height="720"></canvas>
@@ -557,12 +557,14 @@ const DATA = {
 
   /* 2.3 фотополювання — фіксований порядок */
   hunt: [
-    { id: "girkyi",  title: "Фото 1 з 3", hint: "Фрагмент вивіски і чашка на підвіконні.",
+    { id: "girkyi",  title: "Фото 1 з 4", hint: "Фрагмент вивіски і чашка на підвіконні.",
       story: ["Отут беремо каву між парами ☕", "Великий лате — і ти готовий до другої пари", "Порада: замовляй до дзвінка, бо черга!"] },
-    { id: "puzatka", title: "Фото 2 з 3", hint: "Дерев'яна вивіска і рушник-орнамент.",
+    { id: "puzatka", title: "Фото 2 з 4", hint: "Дерев'яна вивіска і рушник-орнамент.",
       story: ["Дешево й ситно пообідати 🍲", "Борщ + деруни = студентський бізнес-ланч", "Після 3-ї пари тут увесь потік"] },
-    { id: "kfs",     title: "Фото 3 з 3", hint: "Червоно-помаранчеві смуги, скло і світло.",
-      story: ["Швидко перекусити між корпусами 🥪", "Сільпо поруч — вода, фрукти, снеки", "5 хвилин — і ти знову на парі"] }
+    { id: "silpo",   title: "Фото 3 з 4", hint: "Жовтий навіс і візок на вивісці.",
+      story: ["Запаси на перерву 🛒", "Тут можна взяти воду, фрукти й снеки", "Візьми щось із собою на наступну пару"] },
+    { id: "kfs", title: "Фото 4 з 4", hint: "Червоно-білий навіс і картопля фрі на вивісці.",
+      story: ["Швидко перекусити між корпусами 🍟", "Якщо маєш мало часу між парами, можна взяти їжу із собою", "5 хвилин — і ти знову на парі"] }
   ],
 
   /* 3.2 / 3.3 історія (звірено: заснування 1615, колегія 1632, статус академії 1701, закриття 1817, відродження 1991) */
@@ -2011,7 +2013,7 @@ const MapView = (() => {
     const cols = Math.ceil(W / GRID), rows = Math.ceil(H / GRID);
     const start = nearestWalkableCell(from.x, from.y);
     const goal = nearestWalkableCell(to.x, to.y);
-    if (!start || !goal) return [to];
+    if (!start || !goal) return [];
     const key = (x, y) => y * cols + x;
     const point = id => ({ cx: id % cols, cy: Math.floor(id / cols) });
     const startId = key(start.cx, start.cy), goalId = key(goal.cx, goal.cy);
@@ -2042,14 +2044,14 @@ const MapView = (() => {
         }
       }
     }
-    if (!found) return [to];
+    if (!found) return [];
     const ids = [goalId];
     while (ids[0] !== startId) {
       const prev = came.get(ids[0]);
       if (prev == null) break;
       ids.unshift(prev);
     }
-    const result = ids.slice(1).map(id => { const c = point(id); return cellCenter(c.cx, c.cy); });
+    const result = ids.map(id => { const c = point(id); return cellCenter(c.cx, c.cy); });
     const finalPoint = blocked(to.x, to.y) ? cellCenter(goal.cx, goal.cy) : to;
     if (!result.length || Math.hypot(result[result.length - 1].x - finalPoint.x, result[result.length - 1].y - finalPoint.y) > 5) result.push(finalPoint);
     return result;
@@ -2100,7 +2102,7 @@ const MapView = (() => {
     if (dx || dy) { path = []; target = null; autoEnter = null; }
     else if (!uiBusy && path.length) {
       const wp = path[0], vx = wp.x - hero.x, vy = wp.y - hero.y, d = Math.hypot(vx, vy);
-      if (d < 5) {
+      if (d <= Math.max(5, 220 * dt)) {
         hero.x = wp.x; hero.y = wp.y; path.shift();
         if (!path.length && autoEnter) { const id = autoEnter; autoEnter = null; target = null; enter(id); }
       } else { dx = vx / d; dy = vy / d; }
@@ -2165,16 +2167,20 @@ const MapView = (() => {
     if (!active || !resolver || $("#layer").childElementCount > 0) return;
     const r = cv().getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
-    const p = MAP_POINTS.find(p => {
-      if (p.spawnOnly || stateFn(p.id) === "hidden") return false;
+    const points = MAP_POINTS.filter(p => !p.spawnOnly && stateFn(p.id) !== "hidden");
+    const label = points.find(p => {
+      const labelY = p.labelY ?? p.y - 18;
+      return Math.abs(x - p.x) <= 28 && y >= labelY - 45 && y <= labelY + 13;
+    });
+    const p = label || points.find(p => {
       const [rx, ry, rw, rh] = p.hit;
-      return x >= rx - 8 && x <= rx + rw + 8 && y >= ry - 8 && y <= ry + rh + 8;
+      return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
     });
     if (p && Math.hypot(hero.x - p.tx, hero.y - p.ty) < 48) { enter(p.id); return; }
     const destination = p ? { x: p.tx, y: p.ty } : { x, y };
     path = findPath(hero, destination);
-    target = destination;
-    autoEnter = p ? p.id : null;
+    target = path.length ? path[path.length - 1] : null;
+    autoEnter = path.length && p ? p.id : null;
   }
 
   function ensurePanels() {
@@ -2318,7 +2324,8 @@ function panelQuiz(root, items, { who, keyPrefix, onDone, qSel = ".qz" }) {
           award(keyPrefix + qi, tries ? 5 : 10); Sound.sfx("ok");
           fb.className = "feedback ok"; fb.textContent = it.ok || "Правильно!";
           if (who) setHint(root, who, it.ok || "Так, усе правильно!", "happy");
-          setTimeout(() => { qi++; if (qi < items.length) render(); else { onDone && onDone(); res(); } }, FAST ? 10 : 1100);
+          if (qi === items.length - 1 && onDone) onDone();
+          setTimeout(() => { qi++; if (qi < items.length) render(); else res(); }, FAST ? 10 : 1100);
         } else {
           tries++; b.classList.add("wrong"); b.disabled = true; Sound.sfx("err");
           fb.className = "feedback bad"; fb.textContent = it.why || "Не зовсім. Спробуй ще раз.";
@@ -2381,11 +2388,11 @@ function drawPhoto(ctx, id) {
     for (let i = 0; i < 22; i++) { ctx.fillStyle = i % 2 ? "#c2452d" : "#2b2b2b"; const x = i * 32; ctx.beginPath(); ctx.moveTo(x, 260); ctx.lineTo(x + 16, 244); ctx.lineTo(x + 32, 260); ctx.lineTo(x + 16, 276); ctx.fill(); }
     ctx.fillStyle = "#f7f4ee"; ctx.fillRect(0, 290, w, 80);
   } else {
-    for (let i = 0; i < 14; i++) { ctx.fillStyle = i % 2 ? "#f7f4ee" : "#d8342a"; ctx.fillRect(i * 50, 0, 50, 140); }
+    for (let i = 0; i < 14; i++) { ctx.fillStyle = i % 2 ? "#f7f4ee" : id === "kfs" ? "#d8342a" : "#e0a42b"; ctx.fillRect(i * 50, 0, 50, 140); }
     ctx.fillStyle = "#9ec3d6"; ctx.fillRect(0, 140, w, 230);
     ctx.fillStyle = "rgba(255,255,255,.35)"; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(i * 150, 370); ctx.lineTo(i * 150 + 60, 140); ctx.lineTo(i * 150 + 90, 140); ctx.lineTo(i * 150 + 30, 370); ctx.fill(); }
     ctx.fillStyle = "#f08a24"; rr(ctx, 380, 170, 300, 80, 10); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.font = "800 54px Unbounded, sans-serif"; ctx.textAlign = "left"; ctx.fillText("СІЛ…", 400, 230);
+    ctx.fillStyle = "#fff"; ctx.font = "800 54px Unbounded, sans-serif"; ctx.textAlign = "left"; ctx.fillText(id === "kfs" ? "🍟" : "СІЛ…", 400, 230);
   }
   ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(0, 0, w, h); // "фото" тон
 }
@@ -2404,8 +2411,8 @@ function showHuntPhoto(i) {
   });
 }
 function huntStory(i) {
-  const h = DATA.hunt[i], pal = { girkyi: ["#5a3b22", "#c98d5a"], puzatka: ["#8a5a2b", "#e0a42b"], kfs: ["#c2452d", "#f08a24"] }[h.id];
-  const icon = { girkyi: "☕", puzatka: "🍲", kfs: "🥪" }[h.id];
+  const h = DATA.hunt[i], pal = { girkyi: ["#5a3b22", "#c98d5a"], puzatka: ["#8a5a2b", "#e0a42b"], silpo: ["#925819", "#e0a42b"], kfs: ["#c2452d", "#f08a24"] }[h.id];
+  const icon = { girkyi: "☕", puzatka: "🍲", silpo: "🛒", kfs: "🍟" }[h.id];
   return playVideo({ id: "story_" + h.id, dur: 9, vertical: true, subs: [[0, 3, h.story[0]], [3, 6, h.story[1]], [6, 9, h.story[2]]],
     draw(ctx, t) {
       const g = ctx.createLinearGradient(0, 0, 0, 720); g.addColorStop(0, pal[0]); g.addColorStop(1, pal[1]); ctx.fillStyle = g; ctx.fillRect(0, 0, 405, 720);
@@ -2555,7 +2562,7 @@ function sazGame() {
         ${credits() === 30 && triedFull ? `<div style="margin-top:12px"><button class="btn gold" id="sz_c" data-ok="1">Підтвердити запис</button></div>` : ""}`;
       $$(".sbtn", main).forEach(b => b.onclick = () => enroll(b.dataset.id));
       const c = $("#sz_c", main); if (c) c.onclick = () => stepConfirm();
-      if (chatPop) { if (paniced) { chatPop.classList.add("docked"); main.insertBefore(chatPop, $("table", main)); } else main.appendChild(chatPop); }
+      if (chatPop) main.insertBefore(chatPop, $("table", main));
     }
     async function enroll(id) {
       Sound.sfx("click");
@@ -2570,10 +2577,18 @@ function sazGame() {
       enrolled.push(id); Sound.sfx("ok"); stepCourses();
     }
     async function panic() {
-      chatPop = document.createElement("div"); chatPop.className = "chatpop";
-      chatPop.innerHTML = `<div class="h">${esc(tpl("{faculty} 1 курс 🔥"))}</div>`;
-      main.appendChild(chatPop);
-      const add = (from, t) => { const m = document.createElement("div"); m.className = "msg"; m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`; chatPop.appendChild(m); Sound.sfx("notif"); while (chatPop.children.length > 6) chatPop.children[1].remove(); };
+      chatPop = document.createElement("details"); chatPop.className = "chatpop";
+      chatPop.open = true;
+      chatPop.innerHTML = `<summary>${esc(tpl("{faculty} 1 курс 🔥"))}</summary><div class="messages"></div>`;
+      main.insertBefore(chatPop, $("table", main));
+      const messages = $(".messages", chatPop);
+      const add = (from, t) => {
+        const m = document.createElement("div");
+        m.className = "msg";
+        m.innerHTML = `<span class="n">${esc(from)}</span>${esc(t)}`;
+        messages.appendChild(m);
+        Sound.sfx("notif");
+      };
       add("Остап", "ЛЮДИ САЗ ЛІГ"); await chatWait(900);
       add("Ліза", "в мене «" + byId[fullId].c + "» 0 місць 😭😭"); await chatWait(900);
       add("Тарас", "все, відрахування"); await chatWait(1100);
@@ -2650,7 +2665,7 @@ function standTrack(club, cv) {
 function standVisit(club) {
   return new Promise(res => {
     const done = S.stamps.includes(club.id);
-    const v = openLayer(`<div class="panel stand"><button class="close" aria-label="Закрити">✕</button><div class="eyebrow">${club.id === "media" ? "Медіапроєкт · 1-й корпус" : `Стенд СО · Глава ${club.ch}`}</div><h2>${esc(club.name)}</h2><p class="sub" style="margin:0">${esc(club.blurb)}</p>
+    const v = openLayer(`<div class="panel stand"><button class="close" aria-label="Закрити">✕</button><div class="eyebrow">${club.id === "media" ? "Медіапроєкт · 1-й корпус" : club.ch ? `Стенд СО · Глава ${club.ch}` : "Студентська організація"}</div><h2>${esc(club.name)}</h2><p class="sub" style="margin:0">${esc(club.blurb)}</p>
       <div class="media" id="media"></div><div class="qz"></div></div>`);
     const media = $("#media", v);
     let stopMedia = () => {};
@@ -2697,7 +2712,7 @@ function standVisit(club) {
         ["Реконструкція 1632", (c) => { c.fillStyle = "#3e3258"; c.fillRect(0, 0, 240, 200); c.drawImage(svgImage("sk", npcSVG("skovoroda", "happy")), 60, 10, 120, 184); }]];
       media.innerHTML = `<div class="gallery">${pics.map(p => `<figure><canvas width="240" height="200"></canvas><figcaption>${p[0]}</figcaption></figure>`).join("")}</div>`;
       $$("canvas", media).forEach((c, i) => { const x = c.getContext("2d"); x.fillStyle = "#3a4058"; x.fillRect(0, 0, 240, 200); const draw = () => pics[i][1](x); draw(); setTimeout(draw, 300); });
-    } else {
+    } else if (club.media === "poster") {
       media.innerHTML = `<canvas width="760" height="260"></canvas>`;
       const ctx = $("canvas", media).getContext("2d"); const t0 = performance.now(); let run = true;
       (function f(now) { if (!run) return; const t = (now - t0) / 1000; ctx.fillStyle = "#ffd500"; ctx.fillRect(0, 0, 760, 260); ctx.fillStyle = "#0057b8"; ctx.fillRect(0, 160, 760, 100); ctx.save(); ctx.translate(380, 110); const s = 1 + Math.sin(t * 3) * 0.05; ctx.scale(s, s); ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.moveTo(0, 30); ctx.bezierCurveTo(-60, -10, -40, -60, 0, -30); ctx.bezierCurveTo(40, -60, 60, -10, 0, 30); ctx.fill(); ctx.restore(); ctx.fillStyle = "#141b2e"; ctx.font = "800 30px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("ПОРУЧ", 380, 196); ctx.fillStyle = "#fff"; ctx.font = "700 16px Manrope, sans-serif"; ctx.fillText("Відкрита зустріч щочетверга · 18:00 · двір Староакадемічного", 380, 230); ctx.textAlign = "left"; requestAnimationFrame(f); })(t0);
@@ -2706,14 +2721,16 @@ function standVisit(club) {
     const close = () => { stopMedia(); pop(); closeLayer(v); res(); };
     $(".close", v).addEventListener("click", close);
     const pop = pushKeys(e => { if (e.key === "Escape") close(); return false; });
+    if (!club.q) { media.hidden = true; return; }
     if (done) { $(".qz", v).innerHTML = `<div class="feedback ok">Штамп «${esc(club.short)}» уже у твоєму Нотатнику.</div>`; return; }
-    panelQuiz(v, [{ q: club.q, o: club.o, a: club.a, ok: "Правильно! Тримай штамп.", why: "Не зовсім. Подумай ще." }], { keyPrefix: "stamp_" + club.id + "_" }).then(() => {
+    panelQuiz(v, [{ q: club.q, o: club.o, a: club.a, ok: "Правильно! Тримай штамп.", why: "Не зовсім. Подумай ще." }], { keyPrefix: "stamp_" + club.id + "_", onDone: () => {
       // одна відповідь = один ключ stamp_<id>_0 (10 або 5)
+      if (S.stamps.includes(club.id)) return;
       S.stamps.push(club.id); Sound.sfx("stamp");
       toast(`Штамп СО: <b>${esc(club.short)}</b>`, "word");
       $(".qz", v).innerHTML = `<div style="display:flex;gap:16px;align-items:center"><div class="stamp on" style="width:110px"><span><b>${esc(club.short)}</b>штамп</span></div><div class="feedback ok">Штамп додано на сторінку «Спільнота» в Нотатнику.</div></div>`;
       save();
-    });
+    } });
   });
 }
 
@@ -2721,9 +2738,31 @@ function standVisit(club) {
 function clubChoice() {
   return new Promise(res => {
     const v = openLayer(`<div class="panel quiz" style="width:1000px"><div class="eyebrow">Глава 4 · фінальний вибір</div><h2>Куди хочеш долучитися?</h2>
-      <p class="sub">Можна обрати будь-яку СОшку, навіть якщо ти не був біля її стенду. Вибір з'явиться у фіналі й на сертифікаті.</p>
-      <div class="clubs">${DATA.clubs.map(c => `<button data-id="${c.id}" data-ok="1"><b>${esc(c.name)}</b><span>${esc(c.blurb)}</span>${S.stamps.includes(c.id) ? '<span class="st">✓ є штамп</span>' : ""}</button>`).join("")}</div></div>`);
-    $$(".clubs button", v).forEach(b => b.onclick = () => { Sound.sfx("ok"); S.club = b.dataset.id; closeLayer(v); res(b.dataset.id); });
+      <p class="sub">Переглянь стенди СО, а потім обери організацію для сертифіката.</p>
+      <div class="clubs">${DATA.clubs.map(c => `<button data-id="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.blurb)}</span><span class="st"></span></button>`).join("")}</div>
+      <div class="club-actions"><label for="clubSelect">Мій вибір</label><select id="clubSelect"><option value="">Обери організацію</option>${DATA.clubs.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>
+      <button class="btn gold" id="clubConfirm" disabled>Підтвердити й перейти до фіналу</button></div></div>`);
+    const select = $("#clubSelect", v), confirm = $("#clubConfirm", v);
+    const buttons = $$(".clubs button", v);
+    const refreshStamps = () => buttons.forEach(b => {
+      $(".st", b).textContent = S.stamps.includes(b.dataset.id) ? "✓ є штамп" : "";
+    });
+    refreshStamps();
+    buttons.forEach(b => b.onclick = async () => {
+      v.hidden = true;
+      await standVisit(DATA.clubs.find(c => c.id === b.dataset.id));
+      refreshStamps();
+      v.hidden = false;
+      b.focus();
+    });
+    select.onchange = () => { confirm.disabled = !select.value; };
+    confirm.onclick = () => {
+      if (!select.value) return;
+      Sound.sfx("ok");
+      S.club = select.value;
+      closeLayer(v);
+      res(S.club);
+    };
   });
 }
 
@@ -3043,13 +3082,12 @@ function ch2State(id) {
     case "corp3": return T("ch2_sched") ? "done" : "active";
     case "corp1": return S.stamps.includes("media") ? "done" : "active";
     case "kmc": return T("ch2_room") ? "done" : T("ch2_sched") ? "active" : "normal";
-    case "girkyi": case "puzatka": case "kfs": {
+    case "girkyi": case "puzatka": case "silpo": case "kfs": {
       const idx = DATA.hunt.findIndex(x => x.id === id);
       if (T("ch2_hunt") || idx < h) return "icon";
       if (!started) return idx === 0 ? "active" : "normal";
       return idx === h ? "active" : "normal";
     }
-    case "silpo": return "normal";
     case "lib11": return "locked";
     case "stand4": return "hidden";
     case "stara": return "hidden";
@@ -3058,9 +3096,8 @@ function ch2State(id) {
 }
 function ch2Tasks() {
   const h = S.hunt || 0;
-  const nextHunt = DATA.hunt[h];
   const huntSub = T("ch2_hunt_started") && !T("ch2_hunt")
-      ? `знайдено ${h} з 3 · наступне: ${nextHunt ? nextHunt.id === "girkyi" ? "Гіркий" : nextHunt.id === "puzatka" ? "Пузата Хата" : "KFC" : "готово"}`
+      ? `знайдено ${h} з ${DATA.hunt.length} · відкрити фотопідказку`
       : "почни з Гіркого, далі шукай за фото";
   setTasks("Глава 2 · орієнтація", [
     { id: "s", label: "Як читати розклад", sub: "3-й корпус · Циркульний", done: T("ch2_sched") },
@@ -3078,6 +3115,13 @@ async function ch2() {
     MapView.reset(); MapView.show(ch2State); ch2Tasks();
     await say("maryana", "Це карта кампусу. Ходи клавішами WASD або стрілками, або просто клікай, куди йти. Точки зі знаком «!» чекають на тебе.", { sprite: false, voice: "maryana_05" });
     hideDialog(); done("ch2_intro"); save();
+  }
+  if (!T("ch2_hunt_started") && !T("ch2_hunt")) {
+    MapView.show(ch2State, { from });
+    await say("maryana", "О, ти знайшов кафе! Тримай мій сторіс-квест: я сфоткала три місця, де ми п’ємо каву й обідаємо між парами. Знайди їх усі.", { sprite: false, voice: "maryana_06" });
+    hideDialog();
+    done("ch2_hunt_started"); S.hunt = 0; save();
+    ch2Tasks(); await showHuntPhoto(0);
   }
   while (!(T("ch2_sched") && T("ch2_room") && T("ch2_hunt"))) {
     MapView.show(ch2State, { from }); ch2Tasks(); setBg("blank");
@@ -3115,27 +3159,21 @@ async function ch2Point(id) {
     if (!T("ch2_sched")) { await say("maryana", "Спочатку зазирни в розклад, бо як ти знатимеш номер аудиторії? Розклад — у 3-му корпусі.", { sprite: false }); hideDialog(); return; }
     await guardScene(); done("ch2_room"); return;
   }
-  if (["girkyi", "puzatka", "kfs"].includes(id)) {
+  if (DATA.hunt.some(place => place.id === id)) {
     if (T("ch2_hunt")) { toast(MAP_POINTS.find(p => p.id === id).name + ": фотоквест уже виконано ☕"); return; }
-    if (!T("ch2_hunt_started")) {
-      if (id !== DATA.hunt[0].id) { toast("Почни фотоквест із Гіркого: саме його показує перша підказка."); return; }
-      done("ch2_hunt_started"); S.hunt = 0;
-      await say("maryana", "О, ти знайшов кафе! Тримай мій сторіс-квест: я сфоткала три місця, де ми п'ємо каву й обідаємо між парами. Знайди їх усі.", { sprite: false, voice: "maryana_06" });
-      hideDialog(); ch2Tasks();
-      await showHuntPhoto(0);
-    }
     const cur = DATA.hunt[S.hunt || 0];
     if (id !== cur.id) { await say("maryana", "Хм, на фото не це місце. Подивись уважніше на вивіску й повернися до потрібної точки.", { sprite: false }); hideDialog(); return; }
     Sound.sfx("ok");
     await huntStory(S.hunt || 0);
-    award("ch2_hunt_" + cur.id, 10);
-    S.hunt = (S.hunt || 0) + 1; save();
-    if (S.hunt >= DATA.hunt.length) { done("ch2_hunt"); addWord("cafes", "Де поїсти між парами", "Гіркий — кава; Пузата Хата — пообідати; KFC — швидко перекусити, а Сільпо поруч — вода, фрукти й снеки.", "guide"); return; }
+    // Сільпо й KFC ділять 10 балів останньої точки. Старий ключ KFC лишається чинним.
+    if (cur.id !== "silpo" || !S.scoreLog.ch2_hunt_kfs) {
+      award("ch2_hunt_" + cur.id, cur.id === "silpo" || cur.id === "kfs" ? 5 : 10);
+    }
+    S.hunt = (S.hunt || 0) + 1;
+    if (S.hunt >= DATA.hunt.length) { done("ch2_hunt"); addWord("cafes", "Де поїсти між парами", "Гіркий — кава; Пузата Хата — пообідати; KFC — швидко перекусити, а Сільпо поруч — вода, фрукти й снеки.", "guide"); save(); return; }
+    save();
     ch2Tasks(); await showHuntPhoto(S.hunt);
     return;
-  }
-  if (id === "silpo") {
-    toast("Сільпо: тут можна взяти воду, фрукти й снеки. Для фотоквесту потрібен окремий пункт KFC."); return;
   }
   if (id === "stara") { toast("Староакадемічний корпус. Сюди ми ще повернемося ввечері…"); return; }
   const point = MAP_POINTS.find(p => p.id === id);

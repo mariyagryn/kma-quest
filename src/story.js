@@ -278,13 +278,12 @@ function ch2State(id) {
     case "corp3": return T("ch2_sched") ? "done" : "active";
     case "corp1": return S.stamps.includes("media") ? "done" : "active";
     case "kmc": return T("ch2_room") ? "done" : T("ch2_sched") ? "active" : "normal";
-    case "girkyi": case "puzatka": case "kfs": {
+    case "girkyi": case "puzatka": case "silpo": case "kfs": {
       const idx = DATA.hunt.findIndex(x => x.id === id);
       if (T("ch2_hunt") || idx < h) return "icon";
       if (!started) return idx === 0 ? "active" : "normal";
       return idx === h ? "active" : "normal";
     }
-    case "silpo": return "normal";
     case "lib11": return "locked";
     case "stand4": return "hidden";
     case "stara": return "hidden";
@@ -293,9 +292,8 @@ function ch2State(id) {
 }
 function ch2Tasks() {
   const h = S.hunt || 0;
-  const nextHunt = DATA.hunt[h];
   const huntSub = T("ch2_hunt_started") && !T("ch2_hunt")
-      ? `знайдено ${h} з 3 · наступне: ${nextHunt ? nextHunt.id === "girkyi" ? "Гіркий" : nextHunt.id === "puzatka" ? "Пузата Хата" : "KFC" : "готово"}`
+      ? `знайдено ${h} з ${DATA.hunt.length} · відкрити фотопідказку`
       : "почни з Гіркого, далі шукай за фото";
   setTasks("Глава 2 · орієнтація", [
     { id: "s", label: "Як читати розклад", sub: "3-й корпус · Циркульний", done: T("ch2_sched") },
@@ -313,6 +311,13 @@ async function ch2() {
     MapView.reset(); MapView.show(ch2State); ch2Tasks();
     await say("maryana", "Це карта кампусу. Ходи клавішами WASD або стрілками, або просто клікай, куди йти. Точки зі знаком «!» чекають на тебе.", { sprite: false, voice: "maryana_05" });
     hideDialog(); done("ch2_intro"); save();
+  }
+  if (!T("ch2_hunt_started") && !T("ch2_hunt")) {
+    MapView.show(ch2State, { from });
+    await say("maryana", "О, ти знайшов кафе! Тримай мій сторіс-квест: я сфоткала три місця, де ми п’ємо каву й обідаємо між парами. Знайди їх усі.", { sprite: false, voice: "maryana_06" });
+    hideDialog();
+    done("ch2_hunt_started"); S.hunt = 0; save();
+    ch2Tasks(); await showHuntPhoto(0);
   }
   while (!(T("ch2_sched") && T("ch2_room") && T("ch2_hunt"))) {
     MapView.show(ch2State, { from }); ch2Tasks(); setBg("blank");
@@ -350,27 +355,21 @@ async function ch2Point(id) {
     if (!T("ch2_sched")) { await say("maryana", "Спочатку зазирни в розклад, бо як ти знатимеш номер аудиторії? Розклад — у 3-му корпусі.", { sprite: false }); hideDialog(); return; }
     await guardScene(); done("ch2_room"); return;
   }
-  if (["girkyi", "puzatka", "kfs"].includes(id)) {
+  if (DATA.hunt.some(place => place.id === id)) {
     if (T("ch2_hunt")) { toast(MAP_POINTS.find(p => p.id === id).name + ": фотоквест уже виконано ☕"); return; }
-    if (!T("ch2_hunt_started")) {
-      if (id !== DATA.hunt[0].id) { toast("Почни фотоквест із Гіркого: саме його показує перша підказка."); return; }
-      done("ch2_hunt_started"); S.hunt = 0;
-      await say("maryana", "О, ти знайшов кафе! Тримай мій сторіс-квест: я сфоткала три місця, де ми п'ємо каву й обідаємо між парами. Знайди їх усі.", { sprite: false, voice: "maryana_06" });
-      hideDialog(); ch2Tasks();
-      await showHuntPhoto(0);
-    }
     const cur = DATA.hunt[S.hunt || 0];
     if (id !== cur.id) { await say("maryana", "Хм, на фото не це місце. Подивись уважніше на вивіску й повернися до потрібної точки.", { sprite: false }); hideDialog(); return; }
     Sound.sfx("ok");
     await huntStory(S.hunt || 0);
-    award("ch2_hunt_" + cur.id, 10);
-    S.hunt = (S.hunt || 0) + 1; save();
-    if (S.hunt >= DATA.hunt.length) { done("ch2_hunt"); addWord("cafes", "Де поїсти між парами", "Гіркий — кава; Пузата Хата — пообідати; KFC — швидко перекусити, а Сільпо поруч — вода, фрукти й снеки.", "guide"); return; }
+    // Сільпо й KFC ділять 10 балів останньої точки. Старий ключ KFC лишається чинним.
+    if (cur.id !== "silpo" || !S.scoreLog.ch2_hunt_kfs) {
+      award("ch2_hunt_" + cur.id, cur.id === "silpo" || cur.id === "kfs" ? 5 : 10);
+    }
+    S.hunt = (S.hunt || 0) + 1;
+    if (S.hunt >= DATA.hunt.length) { done("ch2_hunt"); addWord("cafes", "Де поїсти між парами", "Гіркий — кава; Пузата Хата — пообідати; KFC — швидко перекусити, а Сільпо поруч — вода, фрукти й снеки.", "guide"); save(); return; }
+    save();
     ch2Tasks(); await showHuntPhoto(S.hunt);
     return;
-  }
-  if (id === "silpo") {
-    toast("Сільпо: тут можна взяти воду, фрукти й снеки. Для фотоквесту потрібен окремий пункт KFC."); return;
   }
   if (id === "stara") { toast("Староакадемічний корпус. Сюди ми ще повернемося ввечері…"); return; }
   const point = MAP_POINTS.find(p => p.id === id);
