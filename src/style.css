@@ -1,14 +1,14 @@
 /* Layout: fixed 16:9 stage (1280Г—720 logical) scaled to the window, letterboxed on ink.
    Single deliberate look (a game world), colors set explicitly. */
 :root{
-  --ink:#141b2e;        /* РЅС–С‡ РЅР°Рґ РџРѕРґРѕР»РѕРј: С‚Р»Рѕ, РґС–Р°Р»РѕРіРё */
+  --ink:#141b2e;        /* ніч над Подолом: тло, діалоги */
   --ink-2:#222c47;
-  --paper:#f7f4ee;      /* РїР°РЅРµР»С–, РЅРѕС‚Р°С‚РЅРёРє */
+  --paper:#f7f4ee;      /* панелі, нотатник */
   --paper-2:#ebe5d8;
-  --gold:#d9a21b;       /* РјР°Р·РµРїРёРЅСЃСЊРєРµ Р·РѕР»РѕС‚Рѕ: Р°РєС†РµРЅС‚, Р±Р°Р»Рё */
+  --gold:#d9a21b;       /* мазепинське золото: акцент, бали */
   --gold-deep:#a8770a;
-  --patina:#2f7d6d;     /* Р·РµР»РµРЅСЊ Р±Р°РЅСЊ: СѓСЃРїС–С…, Р°РєС‚РёРІРЅС– С‚РѕС‡РєРё */
-  --brick:#c2452d;      /* РїРѕРјРёР»РєР°, "Р±СѓРј" */
+  --patina:#2f7d6d;     /* зелень бань: успіх, активні точки */
+  --brick:#c2452d;      /* помилка, "бум" */
   --muted:#6b7286;
   --line:rgba(20,27,46,.14);
   --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
@@ -20,6 +20,7 @@ body{background:#0b0f1b;color:var(--paper);font-family:var(--f-body);overflow:hi
 #app{position:fixed;inset:0;display:grid;place-items:center;background:radial-gradient(ellipse at center,#18203a 0%,#0b0f1b 70%)}
 #stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;background:var(--ink);box-shadow:0 30px 80px rgba(0,0,0,.6);user-select:none;-webkit-user-select:none}
 #stage canvas{position:absolute;inset:0;display:block}
+#bg,#map{width:100%;height:100%} /* розмір на екрані не залежить від внутрішньої роздільності полотна */
 button{font-family:var(--f-body);cursor:pointer}
 button:focus-visible,[tabindex]:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 [hidden]{display:none!important}
@@ -62,7 +63,7 @@ button:focus-visible,[tabindex]:focus-visible,input:focus-visible,select:focus-v
 #tasks li .box{width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);display:grid;place-items:center;font-size:12px;font-weight:800;margin-top:1px}
 #tasks li.done .box{background:var(--patina);border-color:var(--patina);color:#fff}
 #tasks li.done .t{text-decoration:line-through;color:var(--muted)}
-#tasks li.opt .t::after{content:" В· РЅРµРѕР±РѕРІ'СЏР·РєРѕРІРѕ";color:var(--muted);font-size:11px}
+#tasks li.opt .t::after{content:" · необов'язково";color:var(--muted);font-size:11px}
 #tasks li .t small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 #tasks .hint{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.35}
 
@@ -222,7 +223,7 @@ a.btn{text-decoration:none;justify-content:center}
 .tl-pool .card{width:196px;font-family:var(--f-body);font-weight:600;font-size:13px;line-height:1.35;padding:10px 12px}
 .tl-line{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;position:relative;padding-top:26px}
 .tl-line::before{content:"";position:absolute;left:0;right:0;top:10px;height:4px;background:linear-gradient(90deg,var(--gold-deep),var(--gold));border-radius:2px}
-.tl-line::after{content:"СЂР°РЅС–С€Рµ в†’ РїС–Р·РЅС–С€Рµ";position:absolute;right:0;top:-12px;font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;font-weight:700}
+.tl-line::after{content:"раніше → пізніше";position:absolute;right:0;top:-12px;font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;font-weight:700}
 .tl-slot{min-height:110px;border:2px dashed #c7bfae;border-radius:10px;background:#fff;position:relative;display:flex;flex-direction:column;padding:6px}
 .tl-slot::before{content:"";position:absolute;top:-22px;left:50%;width:12px;height:12px;border-radius:50%;background:var(--paper);border:3px solid var(--gold-deep);transform:translateX(-50%)}
 .tl-slot .yr{font-family:var(--f-display);font-weight:800;font-size:18px;color:var(--patina);text-align:center;min-height:24px}
@@ -282,7 +283,7 @@ a.btn{text-decoration:none;justify-content:center}
 .video .ctl .tag{font-size:12px;color:rgba(255,255,255,.6);letter-spacing:.1em;text-transform:uppercase}
 .video .prog{position:absolute;left:0;bottom:0;height:4px;background:var(--gold);width:0}
 .video .skip{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:18px;padding:7px 16px;font-size:13px;font-weight:600}
-.video.vertical canvas{left:50%;width:405px;transform:translateX(-50%)}
+#stage .video.vertical canvas{left:50%;right:auto;width:405px;transform:translateX(-50%)} /* специфічність вища за #stage canvas{inset:0} */
 
 /* notebook */
 .nb{width:1000px;height:600px;padding:26px 30px;display:flex;flex-direction:column;box-sizing:border-box;background:var(--paper);background-image:repeating-linear-gradient(180deg,transparent 0 31px,rgba(47,125,109,.12) 31px 32px)}
@@ -405,7 +406,7 @@ a.btn{text-decoration:none;justify-content:center}
 /* map prompt */
 .mapprompt{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);background:var(--paper);color:var(--ink);border-radius:12px;padding:10px 18px;font-size:15px;font-weight:600;box-shadow:0 10px 26px rgba(0,0,0,.35);z-index:35;display:flex;gap:10px;align-items:center}
 .mapprompt kbd{font-family:var(--f-display);font-size:12px;background:var(--ink);color:var(--gold);padding:3px 8px;border-radius:5px}
-.maphelp{position:absolute;right:16px;bottom:16px;z-index:34;font-size:12px;color:rgba(247,244,238,.8);background:rgba(20,27,46,.75);padding:7px 12px;border-radius:8px}
+.maphelp{position:absolute;left:316px;bottom:14px;z-index:34;font-size:12px;color:rgba(247,244,238,.8);background:rgba(20,27,46,.75);padding:7px 12px;border-radius:8px}
 
 /* Campus map legend: paired with the task panel on the left. */
 .map-legend{position:absolute;left:16px;top:350px;width:268px;max-height:316px;overflow:auto;box-sizing:border-box;background:rgba(247,244,238,.97);color:var(--ink);border-radius:6px 14px 14px 6px;padding:13px 14px 11px;z-index:24;box-shadow:0 10px 30px rgba(0,0,0,.3);border-left:5px solid var(--patina)}
@@ -442,3 +443,6 @@ a.btn{text-decoration:none;justify-content:center}
 #stage.map-open .map-sidebar #tasks li button { font-size:12px; padding:7px; }
 #stage.map-open .map-sidebar #tasks .hint { font-size:11px; }
 #stage.map-open .map-sidebar .map-legend { padding:12px 11px; }
+.mapintro{position:absolute;left:316px;top:62px;max-width:300px;z-index:36;background:var(--gold);color:var(--ink);border-radius:14px;padding:12px 16px;font-size:13px;line-height:1.4;font-weight:600;box-shadow:0 10px 26px rgba(0,0,0,.35);pointer-events:none}
+.mapintro b{display:block;font-family:var(--f-display);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.mapintro[hidden]{display:none}

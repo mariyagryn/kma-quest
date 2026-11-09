@@ -1,64 +1,157 @@
 /* =========================================================
-   KMA Quest — інтерактивна карта кампусу.
-   Ілюстрація є окремим фоном; точки, маркери, зіткнення
-   та рух персонажа залишаються незалежними шарами.
+   KMA Quest — інтерактивна карта кампусу (Глава 2 і 4).
+   Геометрію взято з OpenStreetMap (src/mapdata.js, генерує scripts/osm_campus_map.py):
+   реальні контури корпусів, вулиці, газони, трамвайне кільце на Контрактовій
+   і справжні адреси закладів (Гіркий — Спаська, Пузата Хата — Контрактова пл.,
+   KFC і Сільпо — Сагайдачного, 41). Карту повернуто на 45°, як на схемах НаУКМА:
+   вул. Сковороди та Іллінська — вертикально, Волоська — горизонтально, Контрактова площа — внизу.
+   Ті самі полігони задають і малюнок, і зіткнення.
    ========================================================= */
-const MAP_BG = new Image();
-MAP_BG.src = "assets/img/bg_campusMap.webp";
-const MAP_BG_X = 200;
-const MAP_BG_W = 1080;
-const MAP_BG_H = 720;
-// Трамвай — окремий спрайт, а не частина нерухомої карти.
 const MAP_TRAM = new Image();
 MAP_TRAM.src = "assets/img/tram_sprite.png";
 
+// Розпаковка геометрії: плоскі масиви [x0,y0,x1,y1,...] → точки + рамки для швидкої перевірки.
+const pairs = a => { const r = []; for (let i = 0; i < a.length; i += 2) r.push([a[i], a[i + 1]]); return r; };
+const MAP_BUILDINGS = MAP_GEO.b.map(([k, ...xy]) => {
+  const p = pairs(xy), xs = p.map(q => q[0]), ys = p.map(q => q[1]);
+  return { k, p, x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+});
+
 const MAP_POINTS = [
-  // Корпуси НаУКМА. Координати прив'язані до окремого фону карти.
-  { id: "corp8", name: "8-й корпус", x: 450, y: 82, labelY: 143, tx: 450, ty: 158, hit: [410, 24, 92, 120] },
-  { id: "corp9", name: "9-й корпус", x: 585, y: 66, labelY: 132, tx: 585, ty: 151, hit: [495, 0, 180, 130] },
-  { id: "corp10", name: "10-й корпус", x: 740, y: 76, labelY: 137, tx: 740, ty: 155, hit: [675, 0, 135, 130] },
-  { id: "corp4", name: "4-й корпус", x: 605, y: 226, labelY: 224, tx: 605, ty: 174, hit: [495, 185, 205, 105] },
-  { id: "kmc", name: "КМЦ", x: 770, y: 255, labelY: 275, tx: 850, ty: 360, hit: [690, 190, 145, 135] },
-  { id: "corp7", name: "7-й корпус", x: 480, y: 330, labelY: 350, tx: 470, ty: 395, hit: [410, 295, 150, 90] },
-  { id: "corp6", name: "6-й корпус", x: 620, y: 330, labelY: 350, tx: 620, ty: 395, hit: [560, 295, 140, 90] },
-  { id: "corp5", name: "5-й корпус", x: 760, y: 330, labelY: 350, tx: 800, ty: 395, hit: [700, 295, 135, 90] },
-  { id: "lib11", name: "11-й корпус", subtitle: "БІБЛІОТЕКА", x: 455, y: 505, labelY: 560, tx: 450, ty: 632, hit: [375, 390, 160, 235] },
-  { id: "corp2", name: "2-й корпус", x: 625, y: 455, labelY: 470, tx: 620, ty: 532, hit: [590, 400, 80, 125] },
-  { id: "corp1", name: "1-й корпус", subtitle: "KMA TODAY", x: 770, y: 505, labelY: 560, tx: 760, ty: 632, hit: [705, 390, 145, 235] },
-  { id: "corp3", name: "3-й корпус · Циркульний", x: 625, y: 620, labelY: 644, tx: 620, ty: 686, hit: [510, 555, 230, 125] },
+  // Корпуси НаУКМА (номери — як на схемах університету).
+  { id: "corp4", name: "4-й корпус" },
+  { id: "kmc", name: "КМЦ" },
+  { id: "corp7", name: "7-й корпус" },
+  { id: "corp6", name: "6-й корпус" },
+  { id: "corp5", name: "5-й корпус" },
+  { id: "corp10", name: "10-й корпус" },
+  { id: "lib11", name: "11-й корпус", subtitle: "БІБЛІОТЕКА" },
+  { id: "corp2", name: "2-й корпус" },
+  { id: "corp1", name: "1-й корпус", subtitle: "KMA TODAY" },
+  { id: "corp3", name: "3-й корпус" },
+  // Заклади поруч — на своїх справжніх адресах.
+  // На Подолі три «Гіркі»: будь-який із них зараховується в квесті.
+  { id: "girkyi", name: "Гіркий", subtitle: "НА ПЛАЦУ", dx: 52, dy: 26 },
+  { id: "girkyi2", name: "Гіркий", subtitle: "У ПАРКУ" },
+  { id: "girkyi3", name: "Гіркий", subtitle: "БІЛЯ МЕТРО" },
+  { id: "puzatka", name: "Пузата Хата" },
+  { id: "kfs", name: "KFC", dx: -34 },
+  { id: "silpo", name: "Сільпо", dx: 34, dy: -18 },
+  // Невеликий стенд Взаємодопомоги на Контрактовій площі.
+  { id: "stand4", name: "СО: Взаємодопомога", stand: true },
+  // Точка появи в Главі 4 — двір Староакадемічного корпусу. Окремо не відображається.
+  { id: "stara", name: "Староакадемічний корпус", spawnOnly: true }
+].map(p => { const g = MAP_GEO.pts[p.id], q = Object.assign({}, g, p); q.x = g.x + (p.dx || 0); q.labelY = g.labelY + (p.dy || 0); return q; });
 
-  // Місця поруч із кампусом.
-  { id: "girkyi", name: "Гіркий", x: 350, y: 292, labelY: 264, tx: 350, ty: 370, hit: [300, 242, 95, 115] },
-  { id: "puzatka", name: "Пузата Хата", x: 1170, y: 360, labelY: 337, tx: 1170, ty: 430, hit: [1110, 295, 125, 130] },
-  { id: "kfs", name: "KFC", x: 980, y: 552, labelY: 527, tx: 980, ty: 620, hit: [925, 500, 110, 120] },
-  { id: "silpo", name: "Сільпо", x: 1110, y: 552, labelY: 527, tx: 1110, ty: 620, hit: [1050, 500, 120, 120] },
+// Ходити можна всюди, крім будівель; зліва — бічна панель.
+const MAP_WALK = { x0: 308, x1: W - 10, y0: 6, y1: H - 8 };
+function inPoly(x, y, p) {
+  let c = false;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    const [xi, yi] = p[i], [xj, yj] = p[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+  }
+  return c;
+}
+function mapBlocked(x, y) {
+  if (x < MAP_WALK.x0 || x > MAP_WALK.x1 || y < MAP_WALK.y0 || y > MAP_WALK.y1) return true;
+  for (const b of MAP_BUILDINGS) {
+    if (x < b.x0 - 3 || x > b.x1 + 3 || y < b.y0 - 3 || y > b.y1 + 3) continue;
+    if (inPoly(x, y, b.p) || inPoly(x + 3, y, b.p) || inPoly(x - 3, y, b.p) || inPoly(x, y + 3, b.p) || inPoly(x, y - 3, b.p)) return true;
+  }
+  return false;
+}
 
-  // Не окрема будівля: невеликий стенд Взаємодопомоги біля нижньої доріжки.
-  { id: "stand4", name: "СО: Взаємодопомога", x: 320, y: 645, labelY: 615, tx: 320, ty: 660, hit: [290, 610, 65, 60], stand: true },
+/* ---------- Малювання (стиль гри: пласка ілюстрація, вид згори з легким нахилом) ---------- */
+const MAP_PAL = {
+  ground: "#ece3cf", road: "#cdc7ba", roadEdge: "#bab3a5", lawn: "#a9cf7f", lawnEdge: "#8fbb66",
+  kma: ["#3f8a6c", "#2a5f4b"], grey: ["#c4bdb0", "#9f988b"], church: ["#f3ede2", "#a59c8b"], cafe: ["#d9a777", "#9c6b40"],
+  wall: "#f1e4c4", greyWall: "#e2dacb", ink: "#141b2e", gold: "#d9a21b"
+};
+const CAFE_STYLE = { girkyi: ["#7a4b32", "☕"], girkyi2: ["#7a4b32", "☕"], girkyi3: ["#7a4b32", "☕"], puzatka: ["#b5562f", "🍲"], kfs: ["#b8322a", "🍗"], silpo: ["#e07b22", "🛒"] };
+function polyPath(ctx, p, dx = 0, dy = 0) { ctx.beginPath(); p.forEach(([x, y], i) => i ? ctx.lineTo(x + dx, y + dy) : ctx.moveTo(x + dx, y + dy)); ctx.closePath(); }
+function linePath(ctx, p) { ctx.beginPath(); p.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); }
+function mapTree(ctx, x, y, s = 1) {
+  ctx.fillStyle = "rgba(40,60,30,.22)"; ctx.beginPath(); ctx.ellipse(x + 3, y + 4, 8 * s, 6 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#4f8a43"; ctx.beginPath(); ctx.arc(x, y, 8 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = "#6aa957"; ctx.beginPath(); ctx.arc(x - 2 * s, y - 2 * s, 5 * s, 0, 7); ctx.fill();
+}
+function drawCampusMap(ctx) {
+  const P = MAP_PAL;
+  ctx.fillStyle = P.ground; ctx.fillRect(0, 0, W, H);
+  // газони й сквери (з деревами всередині)
+  const trees = [];
+  for (const g of MAP_GEO.green) {
+    const p = pairs(g); polyPath(ctx, p); ctx.fillStyle = P.lawn; ctx.fill(); ctx.strokeStyle = P.lawnEdge; ctx.lineWidth = 1.5; ctx.stroke();
+    const xs = p.map(q => q[0]), ys = p.map(q => q[1]);
+    for (let x = Math.min(...xs) + 9; x < Math.max(...xs); x += 26) for (let y = Math.min(...ys) + 9; y < Math.max(...ys); y += 26)
+      if (inPoly(x, y, p) && ((x * 7 + y * 3) % 5) < 3) trees.push([x, y]);
+  }
+  // вулиці (спершу бордюр, потім полотно)
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const pass of [0, 1]) for (const [w, ...xy] of MAP_GEO.roads) {
+    linePath(ctx, pairs(xy)); ctx.strokeStyle = pass ? P.road : P.roadEdge; ctx.lineWidth = pass ? w : w + 3; ctx.stroke();
+  }
+  // трамвайна колія (кільце на Контрактовій)
+  for (const s of MAP_GEO.tram) {
+    linePath(ctx, pairs(s)); ctx.strokeStyle = "#9b9282"; ctx.lineWidth = 5; ctx.stroke();
+    ctx.strokeStyle = "#6f675a"; ctx.lineWidth = 1.2; ctx.setLineDash([2, 3]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // фонтан «Самсон» на Контрактовій площі
+  const [fx, fy] = MAP_GEO.fountain;
+  ctx.fillStyle = "#d8ccb2"; ctx.beginPath(); ctx.arc(fx, fy, 11, 0, 7); ctx.fill();
+  ctx.fillStyle = "#7fb7d6"; ctx.beginPath(); ctx.arc(fx, fy, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = P.gold; ctx.beginPath(); ctx.arc(fx, fy, 2.5, 0, 7); ctx.fill();
+  // будівлі: тінь → південна стіна (зсув униз) → дах
+  for (const b of MAP_BUILDINGS) { polyPath(ctx, b.p, 4, 5); ctx.fillStyle = "rgba(40,50,35,.18)"; ctx.fill(); }
+  for (const b of MAP_BUILDINGS) {
+    const [roof, line] = P[b.k] || P.grey;
+    polyPath(ctx, b.p, 0, 4); ctx.fillStyle = b.k === "kma" || b.k === "cafe" ? P.wall : P.greyWall; ctx.fill();
+    polyPath(ctx, b.p); ctx.fillStyle = roof; ctx.fill(); ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.stroke();
+    if (b.k === "church") {
+      const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+      ctx.fillStyle = "#3f8a6c"; ctx.beginPath(); ctx.arc(cx, cy, 6, 0, 7); ctx.fill();
+      ctx.fillStyle = P.gold; ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, 7); ctx.fill();
+    }
+  }
+  // заклади: кругла вивіска з іконкою точно на справжній адресі
+  for (const id of Object.keys(CAFE_STYLE)) {
+    const pt = MAP_GEO.pts[id]; if (!pt) continue;
+    const [col, icon] = CAFE_STYLE[id], x = pt.hit[0] + pt.hit[2] / 2 + (id === "kfs" ? -9 : id === "silpo" ? 9 : 0), y = pt.hit[1] + pt.hit[3] / 2;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, 10, 0, 7); ctx.fill(); ctx.strokeStyle = "#fffaf0"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = "11px 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(icon, x, y + 1);
+  }
+  trees.forEach(([x, y], i) => mapTree(ctx, x, y, 0.85 + (i % 3) * 0.12));
+  // орієнтири: пам'ятник Сковороді та метро
+  for (const [kind, x, y, text] of MAP_GEO.lm) {
+    if (kind === "monument") {
+      ctx.fillStyle = "#d8ccb2"; rr(ctx, x - 5, y - 1, 10, 7, 2); ctx.fill();
+      ctx.fillStyle = "#8a6d3b"; rr(ctx, x - 3, y - 11, 6, 11, 2); ctx.fill(); ctx.beginPath(); ctx.arc(x, y - 14, 3.2, 0, 7); ctx.fill();
+    } else {
+      ctx.fillStyle = "#d4342c"; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill(); ctx.strokeStyle = "#fffaf0"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "#fff"; ctx.font = "800 11px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("M", x, y + 1);
+    }
+    ctx.fillStyle = "rgba(20,27,46,.7)"; ctx.font = "italic 700 9px Manrope, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(text, x, y + 17);
+  }
+  // назви вулиць
+  ctx.fillStyle = "rgba(20,27,46,.6)"; ctx.font = "italic 700 10px Manrope, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const [name, x, y, a] of MAP_GEO.labels) { ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillText(name, 0, 0); ctx.restore(); }
+  ctx.fillStyle = "rgba(20,27,46,.45)"; ctx.font = "600 9px Manrope, sans-serif"; ctx.textAlign = "right";
+  ctx.fillText("© учасники OpenStreetMap", W - 8, H - 4);
+}
 
-  // Точка появи в Главі 4. Вона не відображається як окрема будівля.
-  { id: "stara", name: "Староакадемічний корпус", x: 850, y: 460, tx: 850, ty: 460, hit: [0, 0, 0, 0], spawnOnly: true }
-];
-
-// Прямокутні зони будівель і великих об'єктів на намальованому фоні.
-// Гравець може ходити доріжками, але не проходить крізь споруди.
-const MAP_OBSTACLES = [
-  [420, 40, 80, 90],    // 8-й корпус
-  [500, 0, 165, 120],   // 9-й корпус
-  [680, 15, 100, 100],  // 10-й корпус
-  [500, 195, 305, 85],  // 4-й корпус
-  [710, 200, 100, 110], // КМЦ
-  [420, 302, 410, 78],  // 5–7-й корпуси
-  [380, 400, 150, 210], // 11-й корпус / бібліотека
-  [590, 410, 75, 105],  // 2-й корпус
-  [715, 410, 130, 200], // 1-й корпус
-  [515, 555, 215, 110], // 3-й корпус, Циркульний
-  [310, 250, 80, 100],  // кав'ярня Гіркий
-  [1135, 320, 90, 95],  // Пузата Хата
-  [930, 260, 160, 175], // колесо огляду
-  [935, 505, 90, 95],   // KFC
-  [1055, 505, 95, 95]   // Сільпо
-];
+// Трамвай їде реальною колією: позиція вздовж ламаної, спрайт повертається за напрямком руху.
+const MAP_TRAM_PATH = pairs(MAP_GEO.tramPath);
+const MAP_TRAM_LEN = MAP_TRAM_PATH.reduce((s, p, i) => i ? s + Math.hypot(p[0] - MAP_TRAM_PATH[i - 1][0], p[1] - MAP_TRAM_PATH[i - 1][1]) : 0, 0);
+function tramAt(s) {
+  for (let i = 1; i < MAP_TRAM_PATH.length; i++) {
+    const [x0, y0] = MAP_TRAM_PATH[i - 1], [x1, y1] = MAP_TRAM_PATH[i], L = Math.hypot(x1 - x0, y1 - y0);
+    if (s <= L) return { x: x0 + (x1 - x0) * s / L, y: y0 + (y1 - y0) * s / L, a: Math.atan2(y1 - y0, x1 - x0) };
+    s -= L;
+  }
+  return null;
+}
 
 const MAP_ALIASES = {
   lib1: "lib11", lib2: "lib11", stand2: "corp1", dean: "corp4"
@@ -66,62 +159,78 @@ const MAP_ALIASES = {
 const MAP_LEGEND_HTML = `
   <div class="map-legend-title">КОРПУСИ НАУКМА</div>
   <ul>
-    <li><b>1-й корпус</b><span>навчальні аудиторії, деякі кафедри · KMA Today всередині</span></li>
-    <li><b>2-й корпус</b><span>аудиторії та кафедри</span></li>
-    <li><b>3-й (Циркульний)</b><span>лекційні зали й освітні події</span></li>
-    <li><b>4–7-й корпуси</b><span>навчальні та адміністративні підрозділи</span></li>
-    <li><b>8–10-й корпуси</b><span>навчальні аудиторії та лабораторії</span></li>
-    <li><b>11-й корпус</b><span>бібліотека, читальні зали й коворкінг</span></li>
+    <li><b>4–7-й корпуси, КМЦ</b><span>квартал між Волоською і Почайнинською · КМЦ — з боку Іллінської</span></li>
+    <li><b>11-й (Староакадемічний), 12-й</b><span>вздовж вул. Сковороди · бібліотека, Бібліотека Антоновичів</span></li>
+    <li><b>1-й, 2-й, 10-й корпуси</b><span>аудиторії та кафедри · KMA Today у 1-му корпусі</span></li>
+    <li><b>3-й корпус</b><span>лекційні зали · виходить на Контрактову площу</span></li>
+    <li><b>Поруч</b><span>«Гіркий» — три: на плацу біля 3-го корпусу, у парку біля пам'ятника Сковороді та біля метро · Пузата Хата — Контрактова пл. · KFC і Сільпо — Сагайдачного, 41</span></li>
   </ul>`;
 
 const MapView = (() => {
   const cv = () => $("#map");
   let active = false, stateFn = () => "normal", resolver = null;
-  let hero = { x: 820, y: 660, dir: "up", phase: 0, moving: false };
+  let hero = { x: MAP_GEO.spawn[0], y: MAP_GEO.spawn[1], dir: "up", phase: 0, moving: false };
   let target = null, path = [], autoEnter = null;
   const keys = {}, tapped = {};
   let near = null, lastStep = 0, last = 0, dusk = 0, avatar = 0, insideLock = null;
   let promptEl = null, helpEl = null, legendEl = null, sidebarEl = null;
-  const GRID = 12;
+  const GRID = 6; let walkGrid = null;
+  let hover = null, mouse = null, introEl = null, introShown = false, introUntil = 0;
 
+  // Нерухома частина карти малюється один раз у кеш-полотно (після завантаження шрифтів).
+  let baseCache = null;
   function drawMapBase(ctx) {
-    ctx.fillStyle = "#a8c879";
-    ctx.fillRect(0, 0, W, H);
-    if (MAP_BG.complete && MAP_BG.naturalWidth) {
-      ctx.drawImage(MAP_BG, MAP_BG_X, 0, MAP_BG_W, MAP_BG_H);
-    } else {
-      // Простий резервний фон, якщо файл карти ще завантажується або відсутній.
-      const g = ctx.createLinearGradient(0, 0, W, H);
-      g.addColorStop(0, "#9fc274"); g.addColorStop(1, "#d5c7a7");
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = "#d7c9ae"; ctx.fillRect(285, 0, 995, H);
-      ctx.fillStyle = "#a6c878"; ctx.fillRect(200, 0, 1080, H);
-      ctx.fillStyle = "#7b8b79"; ctx.fillRect(900, 0, 380, H);
-      ctx.fillStyle = "#d7c9ae"; ctx.fillRect(920, 0, 360, H);
-      ctx.fillStyle = "#6d9b58"; ctx.font = "700 18px Manrope, sans-serif"; ctx.textAlign = "center";
-      ctx.fillText("Завантаження карти кампусу…", 740, 350);
-    }
+    const q = resQ();
+    if (baseCache && baseCache._q !== q) baseCache = null;
+    if (!baseCache) { baseCache = document.createElement("canvas"); baseCache._q = q; drawCampusMap(hiRes(baseCache, W, H)); }
+    ctx.drawImage(baseCache, 0, 0, W, H);
   }
 
-  let tramX = 265;
-  const TRAM_SPEED = 54; // px/с, плавний рух уздовж рейок
+  // Трамвай проходить кільцем на Контрактовій, потім пауза на «зупинці» — і знову.
+  let tramS = 0, tramWait = 2;
+  const TRAM_SPEED = 26, TRAM_W = 52, TRAM_H = 22;
   function drawMovingTram(ctx, dt) {
-    tramX += TRAM_SPEED * dt;
-    if (tramX > W + 200) tramX = 270 - 195;
-    if (MAP_TRAM.complete && MAP_TRAM.naturalWidth) {
-      ctx.save();
-      ctx.beginPath(); ctx.rect(300, 0, W - 300, H); ctx.clip();
-      ctx.drawImage(MAP_TRAM, tramX, 638, MAP_TRAM.naturalWidth, MAP_TRAM.naturalHeight);
-      ctx.restore();
-    }
+    if (!MAP_TRAM_LEN) return;
+    if (tramWait > 0) { tramWait -= dt; if (tramWait <= 0) tramS = 0; return; }
+    tramS += TRAM_SPEED * dt;
+    if (tramS > MAP_TRAM_LEN) { tramWait = 9; return; }
+    const p = tramAt(tramS);
+    if (!p || !MAP_TRAM.complete || !MAP_TRAM.naturalWidth) return;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(300, 0, W - 300, H); ctx.clip();
+    ctx.translate(p.x, p.y); ctx.rotate(p.a);
+    if (Math.abs(p.a) > Math.PI / 2) ctx.scale(1, -1); // не перевертати вагон догори колесами
+    ctx.drawImage(MAP_TRAM, -TRAM_W / 2, -TRAM_H + 6, TRAM_W, TRAM_H);
+    ctx.restore();
   }
 
-  function drawLabel(ctx, p, st, t) {
+  // Світіння точки: пульсуюче кільце, що розширюється (яскраве при наведенні, ледь помітне для активних завдань).
+  function drawHalo(ctx, p, st, t, isHover) {
+    if (p.spawnOnly || p.stand) return;
+    if (!isHover && st !== "active") return;
+    const [rx, ry, rw, rh] = p.hit, cx = rx + rw / 2, cy = ry + rh / 2, ax = Math.max(16, rw / 2), ay = Math.max(14, rh / 2);
+    ctx.save();
+    if (isHover) {
+      const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, Math.max(ax, ay) + 16);
+      g.addColorStop(0, "rgba(255,221,110,.5)"); g.addColorStop(1, "rgba(255,221,110,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, cy, ax + 16, ay + 16, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = "#f2b600"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cx, cy, ax + 5, ay + 5, 0, 0, 7); ctx.stroke();
+    }
+    for (let k = 0; k < (isHover ? 2 : 1); k++) {
+      const ph = (t * (isHover ? 1.1 : 0.6) + k * 0.5) % 1, e = 6 + ph * (isHover ? 26 : 18);
+      ctx.globalAlpha = (isHover ? 0.8 : 0.3) * (1 - ph); ctx.strokeStyle = "#f2b600"; ctx.lineWidth = isHover ? 3 : 2;
+      ctx.beginPath(); ctx.ellipse(cx, cy, ax + e, ay + e, 0, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawLabel(ctx, p, st, t, isHover) {
     if (p.spawnOnly) return;
     const locked = st === "locked";
     const baseline = p.labelY ?? (p.y - 18);
     ctx.save();
-    ctx.font = "800 12px Manrope, sans-serif";
+    if (isHover) { ctx.translate(p.x, baseline); ctx.scale(1.14, 1.14); ctx.translate(-p.x, -baseline); }
+    ctx.font = "800 11px Manrope, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const label = p.name;
@@ -132,6 +241,7 @@ const MapView = (() => {
     ctx.fillStyle = locked ? "rgba(70,76,85,.92)" : "rgba(20,27,46,.91)";
     rr(ctx, p.x - width / 2, boxY, width, 26, 8); ctx.fill();
     ctx.shadowBlur = 0;
+    if (isHover) { ctx.strokeStyle = "#f2b600"; ctx.lineWidth = 2.5; rr(ctx, p.x - width / 2, boxY, width, 26, 8); ctx.stroke(); }
     ctx.fillStyle = locked ? "#e1e1e1" : "#fffaf0";
     ctx.fillText((locked ? "🔒 " : "") + label, p.x, baseline);
 
@@ -159,6 +269,32 @@ const MapView = (() => {
     ctx.restore();
   }
 
+  // Підказка біля курсора на місці, куди можна піти.
+  function drawTip(ctx, p, st) {
+    const nearIt = Math.hypot(hero.x - p.tx, hero.y - p.ty) < 30;
+    const txt = st === "locked" ? "🔒 Відкриється пізніше" : nearIt ? "Клік — зайти" : "Клік — піти сюди";
+    ctx.save(); ctx.font = "700 12px Manrope, sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    const w = ctx.measureText(txt).width + 20, x = Math.min(W - w - 8, mouse.x + 16), y = Math.min(H - 24, mouse.y + 22);
+    ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = 8;
+    ctx.fillStyle = "#f2b600"; rr(ctx, x, y - 12, w, 24, 12); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = "#141b2e"; ctx.fillText(txt, x + 10, y + 1); ctx.restore();
+  }
+
+  // Єдиний хіт-тест для наведення й кліку: будівля/зона або підпис.
+  function pointAt(x, y) {
+    let best = null, bd = Infinity;
+    for (const p of MAP_POINTS) {
+      if (p.spawnOnly || stateFn(p.id) === "hidden") continue;
+      const [rx, ry, rw, rh] = p.hit, half = Math.max(27, p.name.length * 3.4 + 9), ly = p.labelY ?? p.y;
+      const onBox = x >= rx - 8 && x <= rx + rw + 8 && y >= ry - 8 && y <= ry + rh + 8;
+      const onLabel = !p.stand && Math.abs(x - p.x) <= half && Math.abs(y - ly) <= 14;
+      if (!onBox && !onLabel) continue;
+      const d = onLabel ? Math.hypot(x - p.x, y - ly) : Math.hypot(x - (rx + rw / 2), y - (ry + rh / 2));
+      if (d < bd) { bd = d; best = p; }
+    }
+    return best;
+  }
+
   function drawStand(ctx, p, st) {
     if (!p.stand || st === "hidden") return;
     const x = p.x, y = p.y;
@@ -171,15 +307,10 @@ const MapView = (() => {
   }
 
   function drawHero(ctx) {
-    drawChibi(ctx, AVATARS[avatar] || AVATARS[0], hero.x, hero.y, hero.dir, hero.moving ? hero.phase : null, 1);
+    drawChibi(ctx, AVATARS[avatar] || AVATARS[0], hero.x, hero.y, hero.dir, hero.moving ? hero.phase : null, 0.55);
   }
 
-  function blocked(x, y) {
-    if (x < 286 || x > W - 12 || y < 58 || y > H - 18) return true;
-    return MAP_OBSTACLES.some(([rx, ry, rw, rh]) =>
-        x > rx - 2 && x < rx + rw + 2 && y > ry - 2 && y < ry + rh + 2
-    );
-  }
+  const blocked = mapBlocked;
 
   function cellCenter(cx, cy) { return { x: cx * GRID + GRID / 2, y: cy * GRID + GRID / 2 }; }
   function nearestWalkableCell(x, y) {
@@ -207,30 +338,31 @@ const MapView = (() => {
     const key = (x, y) => y * cols + x;
     const point = id => ({ cx: id % cols, cy: Math.floor(id / cols) });
     const startId = key(start.cx, start.cy), goalId = key(goal.cx, goal.cy);
-    const open = [startId], openSet = new Set(open), came = new Map();
+    // Прохідність клітинок рахуємо один раз (карта нерухома), відкритий список — бінарна купа.
+    if (!walkGrid) { walkGrid = new Uint8Array(cols * rows); for (let i = 0; i < walkGrid.length; i++) { const c = cellCenter(i % cols, Math.floor(i / cols)); walkGrid[i] = blocked(c.x, c.y) ? 0 : 1; } }
+    const free = (x, y) => x >= 0 && y >= 0 && x < cols && y < rows && walkGrid[y * cols + x] === 1;
+    const came = new Map();
     const heuristic = (x, y) => { const dx = Math.abs(goal.cx - x), dy = Math.abs(goal.cy - y); return 14 * Math.min(dx, dy) + 10 * (Math.max(dx, dy) - Math.min(dx, dy)); };
-    const gScore = new Map([[startId, 0]]), fScore = new Map([[startId, heuristic(start.cx, start.cy)]]);
+    const gScore = new Map([[startId, 0]]);
+    const heap = [[heuristic(start.cx, start.cy), startId]];
+    const push = n => { heap.push(n); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+    const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
     const dirs = [[1,0,10],[-1,0,10],[0,1,10],[0,-1,10],[1,1,14],[1,-1,14],[-1,1,14],[-1,-1,14]];
-    let found = false, guard = 0;
-    while (open.length && guard++ < cols * rows * 3) {
-      open.sort((a, b) => (fScore.get(a) ?? Infinity) - (fScore.get(b) ?? Infinity));
-      const current = open.shift(); openSet.delete(current);
+    const closed = new Uint8Array(cols * rows);
+    let found = false;
+    while (heap.length) {
+      const [, current] = pop();
+      if (closed[current]) continue; closed[current] = 1;
       if (current === goalId) { found = true; break; }
       const c = point(current);
       for (const [dx, dy, cost] of dirs) {
         const nx = c.cx + dx, ny = c.cy + dy;
-        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
-        const np = cellCenter(nx, ny);
-        if (blocked(np.x, np.y)) continue;
-        if (dx && dy) {
-          const a = cellCenter(c.cx + dx, c.cy), b = cellCenter(c.cx, c.cy + dy);
-          if (blocked(a.x, a.y) || blocked(b.x, b.y)) continue;
-        }
-        const nid = key(nx, ny), tentative = (gScore.get(current) ?? Infinity) + cost;
+        if (!free(nx, ny)) continue;
+        if (dx && dy && (!free(c.cx + dx, c.cy) || !free(c.cx, c.cy + dy))) continue;
+        const nid = key(nx, ny), tentative = gScore.get(current) + cost;
         if (tentative < (gScore.get(nid) ?? Infinity)) {
           came.set(nid, current); gScore.set(nid, tentative);
-          fScore.set(nid, tentative + heuristic(nx, ny));
-          if (!openSet.has(nid)) { open.push(nid); openSet.add(nid); }
+          push([tentative + heuristic(nx, ny), nid]);
         }
       }
     }
@@ -265,9 +397,8 @@ const MapView = (() => {
       return;
     }
     if (!resolver) return;
-    Sound.sfx("door");
     const r = resolver; resolver = null; insideLock = id; near = null; renderPrompt();
-    r(id);
+    r(id.startsWith("girkyi") ? "girkyi" : id); // три «Гіркі» — одне й те саме місце для сюжету
   }
 
   function frame(now) {
@@ -299,16 +430,15 @@ const MapView = (() => {
     }
     hero.moving = !!(dx || dy);
     if (hero.moving) {
-      const len = Math.hypot(dx, dy), sp = (path.length ? 220 : 250) * dt;
+      const len = Math.hypot(dx, dy), sp = (path.length ? 170 : 160) * dt;
       const nx = hero.x + dx / len * sp, ny = hero.y + dy / len * sp;
       if (!blocked(nx, hero.y)) hero.x = nx;
       if (!blocked(hero.x, ny)) hero.y = ny;
       hero.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
       hero.phase += dt * 14;
-      if (now - lastStep > 300) { Sound.sfx("step"); lastStep = now; }
     }
 
-    let n = null, best = 48;
+    let n = null, best = 30;
     for (const p of MAP_POINTS) {
       if (p.spawnOnly || stateFn(p.id) === "hidden") continue;
       const d = Math.hypot(hero.x - p.tx, hero.y - p.ty);
@@ -317,20 +447,28 @@ const MapView = (() => {
     if (insideLock && (!n || n.id !== insideLock)) insideLock = null;
     if (n !== near) { near = n; renderPrompt(); }
 
-    const ctx = cv().getContext("2d");
+    hover = !uiBusy && mouse ? pointAt(mouse.x, mouse.y) : null;
+    cv().style.cursor = hover ? "pointer" : "default";
+    if (introEl && introUntil && now > introUntil) { introEl.hidden = true; introUntil = 0; }
+    const mc = cv(), q = resQ();
+    if (mc.width !== Math.round(W * q)) { mc.width = Math.round(W * q); mc.height = Math.round(H * q); }
+    const ctx = mc.getContext("2d"); ctx.setTransform(q, 0, 0, q, 0, 0);
     drawMapBase(ctx);
     drawMovingTram(ctx, dt);
     // Однотонна смуга під інформаційною колонкою: карта не просвічує.
     ctx.fillStyle = "#13233a";
     ctx.fillRect(0, 0, 300, H);
     const pts = MAP_POINTS.filter(p => !p.spawnOnly && stateFn(p.id) !== "hidden").sort((a, b) => a.y - b.y);
+    for (const p of pts) drawHalo(ctx, p, stateFn(p.id), t, p === hover);
     let heroDrawn = false;
     for (const p of pts) {
       if (!heroDrawn && hero.y < p.y) { drawHero(ctx); heroDrawn = true; }
       drawStand(ctx, p, stateFn(p.id));
-      drawLabel(ctx, p, stateFn(p.id), t);
+      if (p !== hover) drawLabel(ctx, p, stateFn(p.id), t, false);
     }
     if (!heroDrawn) drawHero(ctx);
+    if (hover) drawLabel(ctx, hover, stateFn(hover.id), t, true);
+    if (hover && mouse) drawTip(ctx, hover, stateFn(hover.id));
     if (target) {
       ctx.strokeStyle = "rgba(217,162,27,.95)"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(target.x, target.y, 9 + Math.sin(t * 6) * 2, 0, Math.PI * 2); ctx.stroke();
@@ -353,16 +491,17 @@ const MapView = (() => {
   addEventListener("keydown", onKey); addEventListener("keyup", onKey);
   addEventListener("blur", () => Object.keys(keys).forEach(k => keys[k] = false));
 
+  function onMove(e) {
+    const r = cv().getBoundingClientRect();
+    mouse = { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+  }
   function onClick(e) {
     if (!active || !resolver || $("#layer").childElementCount > 0) return;
     const r = cv().getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
-    const p = MAP_POINTS.find(p => {
-      if (p.spawnOnly || stateFn(p.id) === "hidden") return false;
-      const [rx, ry, rw, rh] = p.hit;
-      return x >= rx - 8 && x <= rx + rw + 8 && y >= ry - 8 && y <= ry + rh + 8;
-    });
-    if (p && Math.hypot(hero.x - p.tx, hero.y - p.ty) < 48) { enter(p.id); return; }
+    if (introEl) { introEl.hidden = true; introUntil = 0; }
+    const p = pointAt(x, y);
+    if (p && Math.hypot(hero.x - p.tx, hero.y - p.ty) < 30) { enter(p.id); return; }
     const destination = p ? { x: p.tx, y: p.ty } : { x, y };
     path = findPath(hero, destination);
     target = destination;
@@ -372,7 +511,10 @@ const MapView = (() => {
   function ensurePanels() {
     if (!promptEl) {
       promptEl = document.createElement("div"); promptEl.className = "mapprompt"; promptEl.hidden = true; $("#stage").appendChild(promptEl);
-      helpEl = document.createElement("div"); helpEl.className = "maphelp"; helpEl.textContent = "WASD / стрілки — ходити · клік — іти до точки · E — увійти"; $("#stage").appendChild(helpEl);
+      helpEl = document.createElement("div"); helpEl.className = "maphelp"; helpEl.textContent = "🖱 Наведи на місце й клікни — персонаж піде сам · також WASD / стрілки · E — увійти"; $("#stage").appendChild(helpEl);
+      introEl = document.createElement("div"); introEl.className = "mapintro"; introEl.hidden = true;
+      introEl.innerHTML = "<b>Як тут ходити</b>Наведи курсор на корпус чи заклад — він засвітиться. Клікни, і персонаж сам дійде й зайде всередину.";
+      $("#stage").appendChild(introEl);
       sidebarEl = document.createElement("div"); sidebarEl.className = "map-sidebar";
       $("#stage").appendChild(sidebarEl);
       legendEl = document.createElement("aside"); legendEl.className = "map-legend"; legendEl.innerHTML = MAP_LEGEND_HTML; legendEl.hidden = true;
@@ -382,19 +524,19 @@ const MapView = (() => {
 
   return {
     show(fn, opts = {}) {
-      stateFn = fn; avatar = S.player.avatar || 0;
+      stateFn = id => fn(id.startsWith("girkyi") ? "girkyi" : id); avatar = S.player.avatar || 0;
       const c = cv(); c.hidden = false;
-      if (!c._bound) { c.addEventListener("click", onClick); c._bound = true; }
+      if (!c._bound) { c.addEventListener("click", onClick); c.addEventListener("mousemove", onMove); c.addEventListener("mouseleave", () => { mouse = null; }); c._bound = true; }
       ensurePanels();
       $("#stage").classList.add("map-open");
       sidebarEl.appendChild($("#tasks"));
       sidebarEl.hidden = false;
       helpEl.hidden = false; legendEl.hidden = false;
+      if (!introShown) { introShown = true; introEl.hidden = false; introUntil = performance.now() + 14000; }
       if (opts.from) {
         const id = normalizeId(opts.from), p = MAP_POINTS.find(p => p.id === id);
         if (p) {
-          hero.x = p.tx; hero.y = Math.min(H - 28, p.ty + 18);
-          if (blocked(hero.x, hero.y)) { hero.x = p.tx; hero.y = p.ty - 18; }
+          hero.x = p.tx; hero.y = p.ty; // точка входу завжди на доріжці
           hero.dir = "down"; insideLock = id;
         }
       }
@@ -407,6 +549,8 @@ const MapView = (() => {
       active = false; const c = cv(); c.hidden = true;
       if (promptEl) promptEl.hidden = true;
       if (helpEl) helpEl.hidden = true;
+      if (introEl) introEl.hidden = true;
+      mouse = null; hover = null;
       if (legendEl) legendEl.hidden = true;
       if (sidebarEl) sidebarEl.hidden = true;
       $("#stage").classList.remove("map-open");
@@ -417,6 +561,7 @@ const MapView = (() => {
       Object.keys(keys).forEach(k => keys[k] = false);
     },
     refresh() { renderPrompt(); },
+    invalidate() { baseCache = null; },
     set dusk(v) { dusk = v; },
     get hero() { return hero; },
     get isActive() { return active; },
@@ -424,6 +569,6 @@ const MapView = (() => {
     stateOf(id) { return stateFn ? stateFn(normalizeId(id)) : null; },
     enterForTest(id) { if (resolver) { const r = resolver; resolver = null; insideLock = normalizeId(id); r(normalizeId(id)); } },
     prerender() { const c = document.createElement("canvas"); c.width = W; c.height = H; drawMapBase(c.getContext("2d")); return c; },
-    reset() { hero = { x: 820, y: 660, dir: "up", phase: 0, moving: false }; target = null; path = []; autoEnter = null; near = null; insideLock = null; }
+    reset() { hero = { x: MAP_GEO.spawn[0], y: MAP_GEO.spawn[1], dir: "up", phase: 0, moving: false }; target = null; path = []; autoEnter = null; near = null; insideLock = null; }
   };
 })();

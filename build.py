@@ -1,8 +1,8 @@
 import os
 os.makedirs('dist', exist_ok=True)
-css = open('src/style.css').read()
-order = ['data','audio','art','engine','map','games','story']
-js = '\n'.join(open(f'src/{n}.js').read() for n in order)
+css = open('src/style.css',encoding='utf-8').read()
+order = ['data','audio','art','engine','mapdata','map','games','story']
+js = '\n'.join(open(f'src/{n}.js',encoding='utf-8').read() for n in order)
 fonts = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@500;700;800&display=swap">'
 body = '''<div id="app"><div id="stage">
 <canvas id="bg" width="1280" height="720"></canvas>
@@ -15,7 +15,7 @@ body = '''<div id="app"><div id="stage">
 </div></div>
 <div id="small"><div><b>KMA Quest</b>Гра розрахована на комп'ютер або ноутбук. Відкрийте її у вікні, ширшому за 700 пікселів.</div></div>'''
 art = f'<title>KMA Quest</title>\n{fonts}\n<style>\n{css}\n</style>\n{body}\n<script>\n{js}\n</script>\n'
-open('dist/kmaquest.html','w').write(art)
+open('dist/kmaquest.html','w',encoding='utf-8').write(art)
 full = f'<!doctype html>\n<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n{art.split(chr(10),1)[0]}\n{fonts}\n<style>\n{css}\n</style></head><body>\n{body}\n<script>\n{js}\n</script>\n</body></html>\n'
 open('dist/index.html', 'w', encoding='utf-8').write(full)
 open('index.html', 'w', encoding='utf-8').write(full)

@@ -308,16 +308,71 @@ BG.library = (ctx, t) => {
 };
 BG.room = (ctx) => {
   ctx.drawImage(layer("room", c => {
-    sky(c, "#e9d9c8", "#d6c3ae");
-    c.fillStyle = "#9c7b5c"; c.fillRect(0, 520, W, 200);
-    c.fillStyle = "#cfe8f5"; c.fillRect(840, 90, 300, 250); c.strokeStyle = "#f7f4ee"; c.lineWidth = 12; c.strokeRect(840, 90, 300, 250);
-    c.fillStyle = "#ffd88a"; c.beginPath(); c.arc(1060, 150, 30, 0, 7); c.fill();
-    c.fillStyle = "#6b8fbf"; c.fillRect(60, 420, 520, 120); c.fillStyle = "#f7f4ee"; c.fillRect(70, 400, 140, 40);
-    c.fillStyle = "#7a5432"; c.fillRect(700, 420, 420, 22); c.fillRect(720, 442, 20, 120); c.fillRect(1080, 442, 20, 120);
+    const sh = (x, y, w, h, r = 0) => { c.fillStyle = "rgba(60,40,25,.22)"; c.beginPath(); c.ellipse(x + w / 2, y + h, w / 2 + r, 9, 0, 0, 7); c.fill(); };
+    // стіна
+    const wg = c.createLinearGradient(0, 0, 0, 520); wg.addColorStop(0, "#efe0cb"); wg.addColorStop(1, "#dcc7ac"); c.fillStyle = wg; c.fillRect(0, 0, W, 520);
+    c.fillStyle = "rgba(255,255,255,.18)"; for (let x = 0; x < W; x += 80) c.fillRect(x, 0, 40, 500); // ледь помітні смуги шпалер
+    c.fillStyle = "#f7f4ee"; c.fillRect(0, 488, W, 32); c.fillStyle = "#e3d6c1"; c.fillRect(0, 516, W, 4); // плінтус
+    // підлога: дошки
+    c.fillStyle = "#b98f66"; c.fillRect(0, 520, W, 200);
+    for (let r = 0; r < 5; r++) { const y = 520 + r * 40; c.fillStyle = r % 2 ? "#c29a70" : "#b48a60"; c.fillRect(0, y, W, 40); c.fillStyle = "rgba(70,45,25,.25)"; c.fillRect(0, y, W, 2);
+      for (let x = (r % 2) * 90; x < W; x += 180) c.fillRect(x, y, 2, 40); }
+    // килим
+    c.fillStyle = "rgba(60,40,25,.2)"; c.beginPath(); c.ellipse(644, 628, 330, 62, 0, 0, 7); c.fill();
+    c.fillStyle = "#2f7d6d"; c.beginPath(); c.ellipse(640, 620, 320, 56, 0, 0, 7); c.fill();
+    c.strokeStyle = "#d9a21b"; c.lineWidth = 5; c.beginPath(); c.ellipse(640, 620, 296, 46, 0, 0, 7); c.stroke();
+    c.strokeStyle = "#f7f4ee"; c.lineWidth = 2; c.beginPath(); c.ellipse(640, 620, 250, 36, 0, 0, 7); c.stroke();
+    // вікно з видом на Київ
+    c.fillStyle = "#f7f4ee"; c.fillRect(826, 78, 330, 280);
+    const sk = c.createLinearGradient(0, 92, 0, 344); sk.addColorStop(0, "#8fc3e8"); sk.addColorStop(1, "#e6f1f5"); c.fillStyle = sk; c.fillRect(840, 92, 302, 252);
+    c.fillStyle = "#ffd88a"; c.beginPath(); c.arc(1070, 150, 30, 0, 7); c.fill();
+    c.fillStyle = "rgba(255,255,255,.95)"; [[900, 150, 26], [930, 142, 34], [962, 152, 24]].forEach(([x, y, r]) => { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); });
+    c.fillStyle = "#d6c9b3"; [[850, 270, 50, 74], [904, 250, 44, 94], [1050, 262, 60, 82], [1116, 280, 26, 64]].forEach(([x, y, w, h]) => c.fillRect(x, y, w, h));
+    c.fillStyle = "#3f8a6c"; c.fillRect(960, 244, 80, 36); c.fillStyle = "#e0b448"; c.beginPath(); c.arc(1000, 240, 12, 0, 7); c.fill(); // золота баня
+    c.fillStyle = "#4f8a43"; [[870, 336], [1100, 338], [1020, 340], [940, 338]].forEach(([x, y]) => { c.beginPath(); c.arc(x, y, 24, 0, 7); c.fill(); });
+    c.fillStyle = "#f7f4ee"; c.fillRect(826, 216, 330, 8); c.fillRect(988, 78, 8, 280);   // рами
+    c.fillStyle = "#ece3d3"; c.fillRect(812, 356, 358, 14); // підвіконня
+    c.fillStyle = "#2f7d6d"; c.beginPath(); c.moveTo(800, 70); c.lineTo(864, 70); c.quadraticCurveTo(840, 220, 872, 366); c.lineTo(800, 366); c.fill();   // штори
+    c.beginPath(); c.moveTo(1182, 70); c.lineTo(1118, 70); c.quadraticCurveTo(1142, 220, 1110, 366); c.lineTo(1182, 366); c.fill();
+    c.fillStyle = "rgba(0,0,0,.12)"; c.fillRect(826, 70, 356, 8);
+    // календар
+    c.fillStyle = "rgba(60,40,25,.2)"; c.fillRect(386, 126, 200, 160);
     c.fillStyle = "#f7f4ee"; c.fillRect(380, 120, 200, 160); c.fillStyle = "#c2452d"; c.fillRect(380, 120, 200, 36);
     c.fillStyle = "#fff"; c.font = "700 20px Manrope, sans-serif"; c.textAlign = "center"; c.fillText("СЕРПЕНЬ", 480, 146);
     c.fillStyle = "#2b3350"; c.font = "600 14px Manrope, sans-serif";
     for (let i = 0; i < 28; i++) c.fillText(String(i + 1), 400 + (i % 7) * 27, 180 + Math.floor(i / 7) * 24);
+    // плакат
+    c.fillStyle = "rgba(60,40,25,.2)"; c.fillRect(126, 106, 130, 170);
+    c.fillStyle = "#f7f4ee"; c.fillRect(120, 100, 130, 170); c.fillStyle = "#cfe3f2"; c.fillRect(130, 110, 110, 150);
+    c.fillStyle = "#6b8fbf"; c.beginPath(); c.moveTo(130, 260); c.lineTo(168, 190); c.lineTo(196, 230); c.lineTo(214, 200); c.lineTo(240, 260); c.fill();
+    c.fillStyle = "#ffd88a"; c.beginPath(); c.arc(210, 140, 14, 0, 7); c.fill();
+    // полиця з книжками
+    c.fillStyle = "#7a5432"; c.fillRect(620, 214, 190, 10);
+    [["#c2452d", 624, 164, 18], ["#3e5aa8", 644, 176, 14], ["#d9a21b", 660, 160, 20], ["#2f7d6d", 682, 172, 16], ["#6b4fa0", 700, 168, 14]].forEach(([col, x, y, w]) => { c.fillStyle = col; c.fillRect(x, y, w, 214 - y); });
+    c.fillStyle = "#f7f4ee"; c.fillRect(740, 188, 36, 26); c.fillStyle = "#2f7d6d"; c.beginPath(); c.arc(758, 188, 14, Math.PI, 0); c.fill(); // горщик із рослиною
+    // ліжко
+    sh(40, 540, 560, 0);
+    c.fillStyle = "#7a5432"; c.fillRect(44, 372, 30, 190); c.fillRect(556, 450, 30, 112); c.fillRect(60, 520, 520, 22);   // спинка, ніжки, рама
+    c.fillStyle = "#e8dcc6"; c.fillRect(70, 420, 490, 100);
+    c.fillStyle = "#6b8fbf"; c.fillRect(70, 446, 490, 76); c.fillStyle = "#86a6d1"; for (let x = 70; x < 560; x += 56) c.fillRect(x, 446, 28, 76);   // ковдра у смужку
+    c.fillStyle = "#4d6fa3"; c.fillRect(70, 446, 490, 8);
+    c.fillStyle = "#f7f4ee"; c.fillRect(82, 396, 150, 46); c.fillStyle = "rgba(0,0,0,.06)"; c.fillRect(82, 430, 150, 12);   // подушка
+    c.fillStyle = "#d9a21b"; c.fillRect(380, 462, 110, 34); c.fillStyle = "#f7f4ee"; c.fillRect(388, 470, 94, 4);   // плед
+    // стіл
+    sh(700, 556, 420, 0);
+    c.fillStyle = "#7a5432"; c.fillRect(700, 420, 420, 22); c.fillStyle = "#946a43"; c.fillRect(700, 420, 420, 6);
+    c.fillStyle = "#6a4828"; c.fillRect(716, 442, 20, 118); c.fillRect(1084, 442, 20, 118);
+    c.fillStyle = "#86603c"; c.fillRect(940, 442, 140, 84); c.fillStyle = "#6a4828"; c.fillRect(950, 452, 120, 28); c.fillRect(950, 488, 120, 28);
+    c.fillStyle = "#d9a21b"; c.fillRect(1004, 462, 12, 6); c.fillRect(1004, 498, 12, 6);
+    // лампа, кружка, зошит
+    c.fillStyle = "#2b3350"; c.fillRect(1058, 340, 6, 80); c.fillRect(1040, 414, 42, 8);
+    c.fillStyle = "#d9a21b"; c.beginPath(); c.moveTo(1030, 346); c.lineTo(1092, 346); c.lineTo(1074, 318); c.lineTo(1048, 318); c.fill();
+    c.fillStyle = "#f7f4ee"; c.fillRect(748, 392, 28, 28); c.fillStyle = "#c2452d"; c.fillRect(748, 400, 28, 6); c.strokeStyle = "#f7f4ee"; c.lineWidth = 4; c.strokeRect(774, 398, 10, 14);
+    c.fillStyle = "#3e5aa8"; c.fillRect(800, 408, 70, 12); c.fillStyle = "#f7f4ee"; c.fillRect(802, 410, 66, 8);
+    // рюкзак і рослина біля стіни
+    c.fillStyle = "#2f7d6d"; c.fillRect(612, 470, 54, 66); c.fillStyle = "#22594e"; c.fillRect(612, 502, 54, 8); c.fillStyle = "#d9a21b"; c.fillRect(630, 482, 18, 10);
+    sh(1150, 520, 70, 0); c.fillStyle = "#c2452d"; c.fillRect(1160, 470, 50, 56); c.fillStyle = "#4f8a43";
+    [[1185, 430, 22], [1166, 446, 18], [1204, 448, 18]].forEach(([x, y, r]) => { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); });
   }), 0, 0);
 };
 BG.blank = (ctx) => { ctx.fillStyle = "#141b2e"; ctx.fillRect(0, 0, W, H); };

@@ -24,13 +24,13 @@
 | `src/data.js` | **увесь змістовий матеріал**: факультети, сленг, розклад, квізи, дати, курси ІНП/САЗ, стенди СО, звання, титри — редагується без програмування |
 | `src/story.js` | сценарій сцен (репліки, порядок глав) |
 | `src/games.js` | міні-ігри |
-| `src/map.js` | карта кампусу |
+| `src/map.js`, `src/mapdata.js` | карта кампусу; геометрія — з OpenStreetMap (© учасники OpenStreetMap, ODbL), генерує `python scripts/osm_campus_map.py` із `scripts/osm/*.json` |
 | `src/engine.js`, `src/audio.js`, `src/art.js`, `src/style.css` | рушій, звук, графіка, стилі |
 | `build.py` | збирає `src/*` в `index.html`: `python3 build.py` → `dist/index.html` |
 | `assets/img/` | 8 фонів у WebP/SVG та 78 окремих SVG-портретів у `characters/` |
 | `assets/music/` | 4 музичні теми у MP3 та WAV |
-| `assets/sfx/` | 17 звукових ефектів у MP3 та WAV |
-| `assets/ambience/` | 5 фонових атмосферних звуків у MP3 та WAV |
+| `assets/sfx/` | 24 звукові ефекти у MP3 та WAV (інтерфейс + сюжетні) |
+| `assets/ambience/` | 5 атмосфер локацій у MP3 та WAV |
 | `assets/video/`, `assets/voice/` | папки для майбутніх відеофайлів та озвучення (голос — лише репліки персонажів; оповідач, чати й підказки йдуть без озвучки) |
 | `scripts/export_graphics.mjs`, `scripts/export_audio.mjs` | відтворення графіки в SVG та звуку у WAV із наявних алгоритмів |
 
@@ -44,13 +44,15 @@
  
 **Відео** — `assets/video/<id>.mp4` (H.264, 720p): `p1_admission` (25 с), `ch2_lecture` (10 с), `ch3_history` (90 с), `final` (45 с), сторіс `story_girkyi`, `story_puzatka`, `story_kfs`. Субтитри показує гра.
  
-**Музика** — `assets/music/<id>.mp3`, цикл: `theme_main`, `theme_campus`, `theme_baroque`, `theme_triumph`.
+**Музика** — `assets/music/<id>.mp3`: `theme_main` (титул), `theme_campus` (одноразово: прибуття в КМА, вибір СО; титри), `theme_baroque` (вечір зі Сковородою, глава 3), `theme_lofi` (карта кампусу), `theme_triumph` (фінал). Як у візуальних новелах, музика звучить лише в ключових сценах і тихо, під голос; решту часу чути атмосферу локації. Повна карта звуку — на початку `src/story.js`.
 
-**Атмосферні звуки** — `assets/ambience/<id>.mp3`: `yard`, `podil`, `office`, `library`, `evening`.
+**Атмосферні звуки** — `assets/ambience/<id>.mp3`, цикл 30 с, лише окремі звуки з тишею між ними (без шумової підкладки): `yard` (птахи, кроки), `podil` (птахи, перехожі), `office` (клавіатура, папери), `library` (сторінки), `evening` (цвіркуни час від часу).
  
 **Озвучка** — `assets/voice/<id>.mp3`: `maryana_01`, `maryana_02`, `maryana_03q`, `maryana_03a`, `maryana_03b`, `maryana_04`, `maryana_05`, `maryana_06`, `maryana_07`, `maryana_sched`, `guard_01`, `guard_02`, `guard_wrong_01`, `guard_wrong_02`, `skovoroda_01`, `skovoroda_02`, `skovoroda_03`, `skovoroda_history`, `olga_01`, `olga_02`, `olga_03`, `librarian_01`, `librarian_02`, `final`, `debate_club` (аудіо стенду Дебатного клубу), `media_club` (відео стенду KMA Today; час реплік — у `src/data.js`, поле `voiceLines`). Текст реплік — у `src/story.js` поруч з id.
  
-**Звукові ефекти** — `assets/sfx/<id>.mp3`: `click`, `ok`, `err`, `notif`, `word`, `print`, `bell`, `step`, `paper`, `shh`, `stamp`, `pop`, `whoosh`, `door`, `vibrate`, `sparkle`, `chime`.
+**Звукові ефекти** — `assets/sfx/<id>.mp3`: `click`, `ok`, `err`, `notif`, `word`, `print`, `bell`, `step`, `paper`, `shh`, `stamp`, `pop`, `whoosh`, `door`, `vibrate`, `sparkle`, `chime`; сюжетні: `bells` (світлі дзвони на світанку й на вечірньому дворі), `success` (лист про вступ, запис у САЗ), `tram` (трамвай на карті), `typing` (вхід у САЗ), `quill` (1615, дарчий лист), `door_heavy` (1817, закриття Академії), `applause` (вручення сертифіката).
+
+Усю музику, атмосферу й сюжетні звуки генерує `node scripts/export_audio.mjs` (WAV), далі конвертація в MP3 через ffmpeg (команда — у шапці скрипта).
 
 Початкові WAV-файли залишені поряд із MP3, щоб їх було зручно обробляти в Audacity. Їхні MP3-версії відтворюються грою. Для заміни звуку достатньо підставити MP3 з тією самою назвою.
  
