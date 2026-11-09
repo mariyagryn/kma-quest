@@ -203,7 +203,7 @@ const MapView = (() => {
     const cols = Math.ceil(W / GRID), rows = Math.ceil(H / GRID);
     const start = nearestWalkableCell(from.x, from.y);
     const goal = nearestWalkableCell(to.x, to.y);
-    if (!start || !goal) return [to];
+    if (!start || !goal) return [];
     const key = (x, y) => y * cols + x;
     const point = id => ({ cx: id % cols, cy: Math.floor(id / cols) });
     const startId = key(start.cx, start.cy), goalId = key(goal.cx, goal.cy);
@@ -234,14 +234,14 @@ const MapView = (() => {
         }
       }
     }
-    if (!found) return [to];
+    if (!found) return [];
     const ids = [goalId];
     while (ids[0] !== startId) {
       const prev = came.get(ids[0]);
       if (prev == null) break;
       ids.unshift(prev);
     }
-    const result = ids.slice(1).map(id => { const c = point(id); return cellCenter(c.cx, c.cy); });
+    const result = ids.map(id => { const c = point(id); return cellCenter(c.cx, c.cy); });
     const finalPoint = blocked(to.x, to.y) ? cellCenter(goal.cx, goal.cy) : to;
     if (!result.length || Math.hypot(result[result.length - 1].x - finalPoint.x, result[result.length - 1].y - finalPoint.y) > 5) result.push(finalPoint);
     return result;
@@ -292,7 +292,7 @@ const MapView = (() => {
     if (dx || dy) { path = []; target = null; autoEnter = null; }
     else if (!uiBusy && path.length) {
       const wp = path[0], vx = wp.x - hero.x, vy = wp.y - hero.y, d = Math.hypot(vx, vy);
-      if (d < 5) {
+      if (d <= Math.max(5, 220 * dt)) {
         hero.x = wp.x; hero.y = wp.y; path.shift();
         if (!path.length && autoEnter) { const id = autoEnter; autoEnter = null; target = null; enter(id); }
       } else { dx = vx / d; dy = vy / d; }
@@ -357,16 +357,20 @@ const MapView = (() => {
     if (!active || !resolver || $("#layer").childElementCount > 0) return;
     const r = cv().getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
-    const p = MAP_POINTS.find(p => {
-      if (p.spawnOnly || stateFn(p.id) === "hidden") return false;
+    const points = MAP_POINTS.filter(p => !p.spawnOnly && stateFn(p.id) !== "hidden");
+    const label = points.find(p => {
+      const labelY = p.labelY ?? p.y - 18;
+      return Math.abs(x - p.x) <= 28 && y >= labelY - 45 && y <= labelY + 13;
+    });
+    const p = label || points.find(p => {
       const [rx, ry, rw, rh] = p.hit;
-      return x >= rx - 8 && x <= rx + rw + 8 && y >= ry - 8 && y <= ry + rh + 8;
+      return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
     });
     if (p && Math.hypot(hero.x - p.tx, hero.y - p.ty) < 48) { enter(p.id); return; }
     const destination = p ? { x: p.tx, y: p.ty } : { x, y };
     path = findPath(hero, destination);
-    target = destination;
-    autoEnter = p ? p.id : null;
+    target = path.length ? path[path.length - 1] : null;
+    autoEnter = path.length && p ? p.id : null;
   }
 
   function ensurePanels() {
