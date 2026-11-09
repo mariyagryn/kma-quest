@@ -54,6 +54,9 @@ function fit() {
   st.style.transformOrigin = "50% 50%";
 }
 addEventListener("resize", fit);
+/* Чіткість: гра масштабується на весь екран, тож canvas із текстом малюємо з роздільністю екрана (а не лише 1280×720). */
+function resQ() { return Math.min(3, Math.max(1, Math.ceil((SCALE || 1) * (window.devicePixelRatio || 1) * 4) / 4)); }
+function hiRes(cv, w, h) { const q = resQ(); cv.width = Math.round(w * q); cv.height = Math.round(h * q); const x = cv.getContext("2d"); x.scale(q, q); return x; }
 
 /* ---------- Background loop ---------- */
 let bgFn = BG.blank, bgT0 = 0, bgImg = null, bgName = "";
@@ -72,7 +75,9 @@ function setBg(name) {
 }
 let bgDim = 0;
 function bgLoop(now) {
-  const c = $("#bg"), ctx = c.getContext("2d");
+  const c = $("#bg"), q = resQ();
+  if (c.width !== Math.round(W * q)) { c.width = Math.round(W * q); c.height = Math.round(H * q); }
+  const ctx = c.getContext("2d"); ctx.setTransform(q, 0, 0, q, 0, 0);
   const t = (now - bgT0) / 1000;
   if (bgImg) ctx.drawImage(bgImg, 0, 0, W, H); else bgFn(ctx, t);
   if (bgDim > 0) { ctx.fillStyle = `rgba(10,14,30,${bgDim})`; ctx.fillRect(0, 0, W, H); }
@@ -280,6 +285,20 @@ function layerVoices(v) {
 }
 function closeLayer(v) { if (v && v.parentNode) v.remove(); }
 
+/* ---------- Шрифти ----------
+   document.fonts.ready повертається одразу, якщо жоден шрифт ще не запитано, тож canvas-тексти
+   (фони, карта, сертифікат) малювалися запасним шрифтом і так і лишалися в кеші.
+   Тому завантажуємо потрібні накреслення явно (з кирилицею) і скидаємо кеші, коли шрифти з'явилися. */
+const FONT_FACES = ["500 16px Manrope", "600 16px Manrope", "700 16px Manrope", "800 16px Manrope", "500 16px Unbounded", "700 16px Unbounded", "800 16px Unbounded"];
+function resetFontCaches() { for (const k in staticCache) delete staticCache[k]; if (typeof MapView !== "undefined") MapView.invalidate(); }
+async function loadFonts() {
+  if (!document.fonts) return;
+  const load = Promise.all(FONT_FACES.map(f => document.fonts.load(f, "АаБбЇїЄєІіҐґЯя Aa0 ·")));
+  try { await Promise.race([load, new Promise(r => setTimeout(r, 8000))]); await document.fonts.ready; } catch (e) {}
+  resetFontCaches();
+}
+if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", resetFontCaches);
+
 /* ---------- Title card / fade ---------- */
 async function titleCard(eyebrow, title, ms = 2600) {
   const c = $("#card");
@@ -313,7 +332,7 @@ function playVideo({ id, dur, draw, subs = [], skippable = true, vertical = fals
   return new Promise(res => {
     const v = openLayer(`<canvas width="${vertical ? 405 : W}" height="720"></canvas><div class="subs"><span></span></div>
       <div class="ctl"><span class="tag">${vertical ? "сторіс" : "відео"} · субтитри</span>${skippable ? `<button class="skip" id="vskip">Пропустити ▸▸</button>` : ""}</div><div class="prog"></div>`, "video" + (vertical ? " vertical" : ""));
-    const cv = $("canvas", v), ctx = cv.getContext("2d"), sub = $(".subs span", v), prog = $(".prog", v);
+    const cv = $("canvas", v), ctx = hiRes(cv, vertical ? 405 : W, 720), sub = $(".subs span", v), prog = $(".prog", v);
     const speed = FAST ? 40 : voice ? 1 : SILENT_VIDEO_SPEED;
     let t0 = performance.now(), done = false, videoEl = null, lastSub = -1;
     if (voice) Sound.voice(voice); else Sound.stopVoice();

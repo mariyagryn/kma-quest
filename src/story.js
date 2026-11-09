@@ -1,6 +1,16 @@
 /* =========================================================
    Сюжет: пролог, глави 1–4, фінал. Лінійний скінченний автомат:
    S.scene — остання збережена точка, з якої продовжується гра.
+
+   КАРТА ЗВУКУ (принцип візуальних новел: тиша + атмосфера за замовчуванням,
+   музика — лише там, де вона підсилює момент, і завжди тихо, під голос):
+     титул ............ theme_main (по колу)
+     пролог ........... без музики й фону; вібрація телефону, друк квитка, світлі дзвони на світанку
+     гл.1 прибуття .... theme_campus ОДИН РАЗ (стихає сама), далі — лише двір
+     гл.1 справи ... без музики; гл.2 і гл.4 (карта) ... theme_lofi дуже тихо + Поділ; деканат / бібліотека — лише атмосфера
+     смеркання → гл.3 . theme_baroque (Сковорода, історія), вечірні цвіркуни, дзвони
+     вибір СО ......... theme_campus ОДИН РАЗ
+     фінал, сертифікат  theme_triumph, оплески; титри — theme_campus
    ========================================================= */
 const ORDER = ["prologue", "ch1", "ch1_hub", "ch2", "ch3", "ch3_hub", "ch4", "club", "final", "done"];
 const T = S2 => S.tasks[S2] === true;
@@ -56,25 +66,27 @@ async function titleScreen() {
 
 /* ---------- ПРОЛОГ ---------- */
 function admissionVideo() {
+  const cue = new Set(); // сюжетні звуки відео — кожен один раз
+  const at = (t, k, name) => { if (t >= k && !cue.has(name)) { cue.add(name); Sound.sfx(name); } };
   return playVideo({ id: "p1_admission", dur: 25, subs: [[0.5, 4, "Серпень. Кімната абітурієнта."], [4, 10, "Телефон вібрує: «Вас рекомендовано до зарахування — НаУКМА»"], [10, 16, "Та ну! ТАК!!!"], [16, 22, "На стіні з'являється нова позначка: «1 вересня»"]],
     draw(ctx, t) {
+      at(t, 2.1, "vibrate"); at(t, 4, "notif"); at(t, 10, "success"); at(t, 16.2, "paper");
       if (t < 16) {
         BG.room(ctx, t);
         let px = 900, py = 395, rot = 0;
-        if (t > 2 && t < 9) { px += Math.sin(t * 60) * 3; if (Math.floor(t * 4) % 3 === 0 && Math.floor(t * 20) % 2) Sound.sfx && 0; }
+        if (t > 2 && t < 9) px += Math.sin(t * 60) * 3;
         if (t > 10) { const k = (t - 10) / 6; py = 395 - Math.sin(Math.min(1, k * 2) * Math.PI) * 220 - Math.sin(Math.max(0, k * 2 - 1) * Math.PI) * 140; rot = k * 12; px = 900 - k * 200; }
         ctx.save(); ctx.translate(px, py); ctx.rotate(rot); ctx.fillStyle = "#141b2e"; rr(ctx, -40, -70, 80, 140, 12); ctx.fill();
         ctx.fillStyle = t > 4 ? "#e9eef5" : "#2b3350"; rr(ctx, -34, -62, 68, 124, 8); ctx.fill(); ctx.restore();
         if (t > 4 && t < 10) {
-          ctx.fillStyle = "#fff"; rr(ctx, 690, 200, 460, 110, 16); ctx.fill(); ctx.fillStyle = "#2f7d6d"; ctx.beginPath(); ctx.arc(730, 240, 18, 0, 7); ctx.fill();
-          ctx.fillStyle = "#141b2e"; ctx.font = "800 18px Manrope, sans-serif"; ctx.textAlign = "left"; ctx.fillText("Електронний кабінет вступника", 760, 236);
-          ctx.font = "600 20px Manrope, sans-serif"; ctx.fillText("Вас рекомендовано до зарахування —", 712, 274); ctx.fillStyle = "#2f7d6d"; ctx.font = "800 22px Unbounded, sans-serif"; ctx.fillText("НаУКМА", 712, 300);
+          ctx.fillStyle = "rgba(20,27,46,.45)"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#fff"; rr(ctx, 410, 255, 460, 110, 16); ctx.fill(); ctx.fillStyle = "#2f7d6d"; ctx.beginPath(); ctx.arc(450, 295, 18, 0, 7); ctx.fill();
+          ctx.fillStyle = "#141b2e"; ctx.font = "800 18px Manrope, sans-serif"; ctx.textAlign = "left"; ctx.fillText("Електронний кабінет вступника", 480, 291);
+          ctx.font = "600 20px Manrope, sans-serif"; ctx.fillText("Вас рекомендовано до зарахування —", 432, 329); ctx.fillStyle = "#2f7d6d"; ctx.font = "800 22px Unbounded, sans-serif"; ctx.fillText("НаУКМА", 432, 355);
         }
-        if (t > 10) { const k = (t - 10) / 6; ctx.fillStyle = "#e8c2a0"; [[-1, 0], [1, 0]].forEach(([s]) => { ctx.beginPath(); ctx.ellipse(780 + s * 90, 640 - Math.sin(Math.min(1, k * 3) * Math.PI) * 60, 40, 60, s * .3, 0, 7); ctx.fill(); }); }
       } else {
         ctx.fillStyle = "#e9d9c8"; ctx.fillRect(0, 0, W, H);
         ctx.save(); ctx.translate(640, 360); ctx.rotate(-0.04); ctx.fillStyle = "#fff9e0"; ctx.fillRect(-260, -160, 520, 320); ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.arc(0, -150, 10, 0, 7); ctx.fill();
-        ctx.fillStyle = "#141b2e"; ctx.font = "800 84px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("1 вересня", 0, 20); ctx.font = "600 26px Manrope, sans-serif"; ctx.fillStyle = "#4a5163"; ctx.fillText("Могилянка. Подол. Нове життя.", 0, 80); ctx.restore();
+        ctx.fillStyle = "#141b2e"; ctx.font = "800 84px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("1 вересня", 0, 20); ctx.font = "600 26px Manrope, sans-serif"; ctx.fillStyle = "#4a5163"; ctx.fillText("Могилянка. Поділ. Нове життя.", 0, 80); ctx.restore();
         if (t > 22) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, (t - 22) / 3)})`; ctx.fillRect(0, 0, W, H); }
       }
     } });
@@ -82,10 +94,10 @@ function admissionVideo() {
 async function prologue() {
   S = Object.assign(freshState(), { player: S.player.name ? S.player : freshState().player });
   setChapter("Пролог"); showHUD(false);
-  Sound.stopMusic();
+  Sound.stopMusic(); Sound.stopAmb();
   await admissionVideo();
   setBg("room"); bgDim = 0.55;
-  Sound.startMusic("theme_main");
+  // листування з бадді — у тиші, чути лише сповіщення телефону
   const ph = phoneOpen({ title: "Мар'яна · бадді", sub: "у мережі", av: npcSVG("maryana", "happy", { head: true }) });
   await chatWait(600);
   for (const m of ["Привіт! Я Мар'яна, твоя бадді 👋", "Бадді — це старшокурсниця, яка допомагає фрешам не загубитись. А фреш — це ти :)", "Розкажи про себе, щоб я знала, кого чекати біля 3-го корпусу."]) {
@@ -156,7 +168,7 @@ function nightToMorning() {
     const c = document.createElement("canvas"); c.width = W; c.height = H; c.style.zIndex = 55; $("#stage").appendChild(c);
     const ctx = c.getContext("2d"), t0 = performance.now(), D = FAST ? 100 : 3200;
     const mix = (a, b, k) => { const pa = a.match(/\w\w/g).map(h => parseInt(h, 16)), pb = b.match(/\w\w/g).map(h => parseInt(h, 16)); return "rgb(" + pa.map((v, i) => Math.round(v + (pb[i] - v) * k)).join(",") + ")"; };
-    Sound.sfx("chime");
+    Sound.stopAmb(); Sound.sfx("bells"); // ранок 1 вересня: Київ прокидається під дзвони
     (function f(now) {
       const k = Math.min(1, (now - t0) / D);
       const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, mix("0a0f22", "8fc3e8", k)); g.addColorStop(1, mix("27325a", "ffd9a0", k)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -179,7 +191,7 @@ function ch1Tasks() {
 }
 async function ch1Intro() {
   setBg("yardDay"); showHUD(true); setChapter("Глава 1 · Перші кроки в КМА");
-  Sound.startMusic("theme_campus"); Sound.startAmb("yard");
+  Sound.startMusic("theme_campus", { once: true }); Sound.startAmb("yard"); // перша зустріч — коротка тепла фраза
   await say("maryana", "Ось ти де, {name}! Ласкаво просимо до Могилянки. За твоєю спиною — 3-й корпус Академії. Звідси зручно починати будь-який маршрут кампусом.", { emo: "happy", voice: "maryana_01" });
   await say("maryana", "У тебе сьогодні три справи: додатися в чатик групи, знайти старосту і вивчити нашу мову. Бо тут такий сленг, що без перекладача не розбереш.", { voice: "maryana_02" });
   const r = await choose(["Що таке СОшка?", "Готовий до всього!"], { who: "maryana", text: "Питання є?", voice: "maryana_03q" });
@@ -230,7 +242,7 @@ async function danaChat() {
 }
 async function ch1Hub() {
   setBg("yardDay"); showHUD(true); setChapter("Глава 1 · Перші кроки в КМА");
-  Sound.startMusic("theme_campus"); Sound.startAmb("yard");
+  Sound.stopMusicExcept("theme_campus"); Sound.startAmb("yard"); // справи — без музики (фразі з прибуття даємо дограти)
   showNPC("maryana", "neutral"); hideDialog();
   while (!(T("ch1_chat") && T("ch1_dana"))) {
     ch1Tasks();
@@ -296,7 +308,7 @@ function ch2Tasks() {
       ? `знайдено ${h} з ${DATA.hunt.length} · відкрити фотопідказку`
       : "почни з Гіркого, далі шукай за фото";
   setTasks("Глава 2 · орієнтація", [
-    { id: "s", label: "Як читати розклад", sub: "3-й корпус · Циркульний", done: T("ch2_sched") },
+    { id: "s", label: "Як читати розклад", sub: "3-й корпус", done: T("ch2_sched") },
     { id: "r", label: "Перша лекція: знайти аудиторію", sub: T("ch2_sched") ? "КМЦ, ауд. " + DATA.targetRoom : "спершу відкрий розклад", done: T("ch2_room") },
     { id: "h", label: "Кава між парами", sub: huntSub, done: T("ch2_hunt"), click: T("ch2_hunt_started") && !T("ch2_hunt") },
     { id: "st", label: "KMA Today", sub: "1-й корпус · усередині будівлі", opt: true, done: S.stamps.includes("media") }
@@ -304,7 +316,7 @@ function ch2Tasks() {
 }
 async function ch2() {
   setChapter("Глава 2 · Орієнтація на кампусі"); showHUD(true); hideNPC(); hideDialog();
-  Sound.startMusic("theme_campus"); Sound.startAmb("podil");
+  Sound.startMusic("theme_lofi"); Sound.startAmb("podil"); // карта — тиха лоу-фай музика + місто
   setBg("blank");
   let from = S._mapFrom || null;
   if (!T("ch2_intro")) {
@@ -333,7 +345,7 @@ async function ch2() {
   }
   ch2Tasks();
   // KMA Today is an optional visit inside the 1st corpus, not a separate campus stand.
-  hideTasks();
+  hideTasks(); Sound.stopAmb();
   for (let k = 0; k <= 30; k++) { MapView.dusk = k / 30; await sleep(60); }
   MapView.hide(); MapView.dusk = 0;
   setBg("yardEvening"); Sound.startMusic("theme_baroque"); Sound.startAmb("evening");
@@ -420,8 +432,11 @@ function playHistoryVideo() {
     [65, 75, "1991 рік. Незалежна Україна — і Академія відроджується."], [75, 83, "Двері знову відчинені. У дворі — нові студенти."], [83, 90, "Серед них тепер і ви, студіозусе {name}."]
   ];
   const sk = svgImage("skv", npcSVG("skovoroda", "neutral"));
+  // звукові акценти епох: перо дарчого листа, гупання дверей закритої Академії, дзвони відродження
+  const cue = new Set(), at = (t, a, b, name) => { if (t >= a && t < b && !cue.has(name)) { cue.add(name); Sound.sfx(name); } };
   return playVideo({ id: "ch3_history", dur: 90, skippable: true, subs, voice: "skovoroda_history",
     draw(ctx, t) {
+      at(t, 2, 6, "quill"); at(t, 31, 35, "paper"); at(t, 51, 55, "door_heavy"); at(t, 66, 70, "bells");
       const f = frames.find(fr => t >= fr.a && t < fr.b) || frames[4], k = (t - f.a) / (f.b - f.a);
       const g = ctx.createRadialGradient(640, 360, 100, 640, 360, 800); g.addColorStop(0, f.bg[1]); g.addColorStop(1, f.bg[0]); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
       // гравюрна штриховка
@@ -451,7 +466,7 @@ function ch3Tasks() {
 async function ch3() {
   setChapter("Глава 3 · Історія КМА"); showHUD(true); MapView.hide();
   setBg("yardEvening"); Sound.startMusic("theme_baroque"); Sound.startAmb("evening");
-  Sound.sfx("sparkle");
+  Sound.sfx("bells"); // вечірні дзвони Братського монастиря — вхід в історію
   await sleep(400);
   await say("skovoroda", "Добрий вечір, студіозусе {name}. Я ходив цим двором ще тоді, коли Академія була молодою. Хочеш дізнатися, як усе починалось?", { voice: "skovoroda_01" });
   await choose(["Розкажіть!"], {});
@@ -522,7 +537,7 @@ function ch4Tasks() {
 }
 async function ch4() {
   setChapter("Глава 4 · ВДМС: Академічні виклики"); showHUD(true); hideNPC(); hideDialog();
-  Sound.startMusic("theme_campus"); Sound.startAmb("podil"); setBg("blank");
+  Sound.startMusic("theme_lofi"); Sound.startAmb("podil"); setBg("blank"); // карта — лоу-фай
   let from = S._mapFrom4 || null;
   if (!T("ch4_intro")) {
     MapView.show(ch4State, { from: "stara" }); ch4Tasks();
@@ -580,7 +595,7 @@ async function ch4Point(id) {
 }
 async function clubScene() {
   setChapter("Глава 4 · ВДМС: Академічні виклики"); showHUD(true); MapView.hide();
-  setBg("yardDay"); Sound.startMusic("theme_campus"); Sound.startAmb("yard");
+  setBg("yardDay"); Sound.startMusic("theme_campus", { once: true }); Sound.startAmb("yard"); // підсумок і вибір СО — тепла фраза
   await say("maryana", "Ну що, {name}, ІНП є, САЗ пережив, книгу знайшов. Останнє питання: куди хочеш долучитися?", { emo: "happy", voice: "maryana_07" });
   hideDialog();
   const id = await clubChoice();
@@ -606,12 +621,12 @@ function finalCutscene() {
       if (t >= 18 && t < 24) { ctx.globalAlpha = .55 + Math.sin(t * 5) * .1; ctx.drawImage(im("skovoroda"), 860, 150, 160, 245); ctx.globalAlpha = 1; }
       if (t >= 32) { ctx.drawImage(av, 220, 300, 270, 414); }
       if (t >= 40) { const k = Math.min(1, (t - 40) / 1.5); ctx.save(); ctx.translate(500 + 100 * (1 - k), 470); ctx.rotate(-0.1); ctx.fillStyle = "#f7f4ee"; ctx.fillRect(-90, -60, 180, 120); ctx.strokeStyle = "#d9a21b"; ctx.lineWidth = 5; ctx.strokeRect(-82, -52, 164, 104); ctx.fillStyle = "#141b2e"; ctx.font = "800 16px Unbounded, sans-serif"; ctx.textAlign = "center"; ctx.fillText("СЕРТИФІКАТ", 0, 0); ctx.restore(); }
-      if (t >= 41 && !confettiDone) { confettiDone = true; confetti(3800); }
+      if (t >= 41 && !confettiDone) { confettiDone = true; confetti(3800); Sound.sfx("applause"); }
     } });
 }
 async function final() {
   setChapter("Фінал"); showHUD(true); hideTasks(); MapView.hide(); hideNPC(); hideDialog();
-  Sound.stopAmb(); Sound.startMusic("theme_triumph");
+  Sound.stopAmb(); Sound.startMusic("theme_triumph"); // єдиний момент, де музика веде сцену
   await finalCutscene();
   if (!S.finishedAt) S.finishedAt = Date.now();
   save("done");
@@ -682,7 +697,7 @@ async function boot() {
   $("#snd").onclick = () => { Sound.setEnabled(!Sound.enabled); updateHUD(); };
   $("#nbBtn").onclick = () => openNotebook();
   setBg("title_test");
-  try { await document.fonts.ready; } catch (e) {}
+  await loadFonts();
   if (!TEST) await gate(); else Sound.init();
   while (true) {
     const scene = await titleScreen();

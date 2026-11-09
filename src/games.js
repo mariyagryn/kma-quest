@@ -287,7 +287,7 @@ function sazGame() {
     function stepLogin() {
       main.innerHTML = bar(0) + `<div class="login"><b>Вхід до САЗ</b><label class="field"><label for="sz_l">Логін</label><input id="sz_l" value="${esc(login)}@ukma.edu.ua" readonly></label>
         <label class="field"><label for="sz_p">Пароль</label><input id="sz_p" type="password" value="••••••••" readonly></label><button class="btn" id="sz_in">Увійти</button></div>`;
-      $("#sz_in", main).onclick = () => { Sound.sfx("click"); stepSem(); };
+      $("#sz_in", main).onclick = () => { Sound.sfx("typing"); stepSem(); };
     }
     function stepSem() {
       main.innerHTML = bar(1) + `<div class="login"><b>Оберіть семестр</b><select id="sz_s"><option>Осінній семестр 2026/2027</option></select><button class="btn" id="sz_n">Далі</button></div>`;
@@ -359,7 +359,7 @@ function sazGame() {
       $("#sz_f", main).onclick = async () => {
         S.saz = { enrolled: enrolled.slice(), replaced, full: fullId };
         main.innerHTML = `<div style="display:grid;place-items:center;height:100%;text-align:center"><div><div style="font-size:64px">✅</div><h2>Запис успішний</h2><p class="sub">Урок: завжди мати запасний варіант і заходити в САЗ вчасно.</p></div></div>`;
-        confetti(2500); Sound.sfx("ok"); award("ch4_saz", 20);
+        confetti(2500); Sound.sfx("success"); award("ch4_saz", 20);
         await sleep(2300); closeLayer(v); res();
       };
     }
@@ -525,7 +525,7 @@ function clubChoice() {
 
 /* ---------- Сертифікат (PNG) ---------- */
 async function makeCertificate() {
-  try { await document.fonts.ready; } catch (e) {}
+  await loadFonts();
   const c = document.createElement("canvas"); c.width = 1600; c.height = 1130;
   const x = c.getContext("2d"), r = rank(score()), club = DATA.clubs.find(k => k.id === S.club);
   x.fillStyle = "#f7f4ee"; x.fillRect(0, 0, 1600, 1130);

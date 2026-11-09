@@ -43,7 +43,7 @@ const Sound = (() => {
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1;
-    ["click", "ok", "err", "notif", "word", "print", "bell", "step", "paper", "shh", "stamp", "pop", "whoosh", "door", "vibrate", "sparkle", "chime"].forEach(n => probe("assets/sfx/" + n + ".mp3", ok => { fileOk["sfx_" + n] = ok; }));
+    Object.keys(SFX).forEach(n => probe("assets/sfx/" + n + ".mp3", ok => { fileOk["sfx_" + n] = ok; }));
   }
  
   function tone(freq, t, dur, { type = "sine", gain = 0.2, dest = sfxBus, attack = 0.01, release = 0.08, detune = 0, slide = 0 } = {}) {
@@ -98,12 +98,28 @@ const Sound = (() => {
     door(t) { tone(160, t, 0.2, { type: "triangle", gain: 0.2, slide: 0.7 }); },
     vibrate(t) { for (let i = 0; i < 3; i++) tone(70, t + i * 0.18, 0.12, { type: "sawtooth", gain: 0.12 }); },
     sparkle(t) { [1568, 2093, 2637, 3136, 2637].forEach((n, i) => tone(n, t + i * 0.09, 0.4, { type: "sine", gain: 0.05 })); },
-    chime(t) { [784, 988, 1175].forEach((n, i) => tone(n, t + i * 0.18, 1.2, { type: "sine", gain: 0.1 })); }
+    // далекі київські дзвони (власний мотив); резерв, якщо немає assets/sfx/bells.mp3
+    bells(t) {
+      [["C5", 0.1], ["A4", 0.6], ["F4", 1.1], ["C5", 1.6], ["D5", 2.1], ["C5", 2.6], ["A4", 3.1], ["F4", 3.7]].forEach(([n, d]) => { tone(f(n), t + d, 3, { type: "sine", gain: 0.08, attack: 0.005, release: 2.5 }); tone(f(n) * 2.52, t + d, 1, { type: "sine", gain: 0.015, attack: 0.005, release: 0.8 }); }); },
+    chime(t) { [784, 988, 1175].forEach((n, i) => tone(n, t + i * 0.18, 1.2, { type: "sine", gain: 0.1 })); },
+    /* ---- сюжетні звуки (резерв; основні — assets/sfx/*.mp3) ---- */
+    // м'яка фортепіанна фраза «вийшло!» — лист про вступ, успішний запис у САЗ
+    success(t) { ["F4", "A4", "C5", "F5"].forEach((n, i) => tone(f(n), t + i * 0.12, 1.6, { type: "sine", gain: 0.1, attack: 0.005, release: 1.3 })); },
+    // друк на клавіатурі (вхід у САЗ)
+    typing(t) { for (let i = 0; i < 9; i++) noise(t + i * 0.09 + (i % 3) * 0.03, 0.025, { gain: 0.08, type: "bandpass", freq: 2600 + (i % 4) * 300, q: 3 }); },
+    // гусяче перо по папері (1615, дарчий лист)
+    quill(t) { [0, 0.35, 0.6, 1.0].forEach((d, i) => noise(t + d, 0.25, { gain: 0.05, type: "highpass", freq: 4500 + i * 300, attack: 0.04 })); },
+    // важкі дубові двері зачиняються (1817)
+    door_heavy(t) { tone(55, t, 1.6, { type: "sine", gain: 0.5, slide: 0.7, attack: 0.005, release: 1.2 }); noise(t, 0.3, { gain: 0.25, type: "lowpass", freq: 400 }); },
+    // оплески на врученні сертифіката
+    applause(t) { for (let i = 0; i < 70; i++) { const d = (i * 0.071) % 4.2, k = 1 - Math.abs(d - 1.6) / 2.6; noise(t + d, 0.03, { gain: 0.05 * Math.max(0.2, k), type: "bandpass", freq: 1200 + (i * 373) % 1400, q: 1.2 }); } }
   };
+  // Гучність файлових SFX: інтерфейсні — тихі, сюжетні — на рівні сцени.
+  const SFX_VOL = { click: 0.3, ok: 0.4, err: 0.35, sparkle: 0.3, step: 0.3, notif: 0.35, word: 0.3, pop: 0.3, whoosh: 0.35, chime: 0.35, bells: 0.6, applause: 0.55, typing: 0.5, quill: 0.6, door_heavy: 0.7, success: 0.55 };
   function sfx(name) {
     if (!enabled) return;
     init(); if (!ctx) return;
-    if (fileOk["sfx_" + name]) { playFile("assets/sfx/" + name + ".mp3", 0.7); return; }
+    if (fileOk["sfx_" + name]) { playFile("assets/sfx/" + name + ".mp3", SFX_VOL[name] ?? 0.65); return; }
     const fn = SFX[name]; if (fn) fn(ctx.currentTime + 0.01);
   }
  
@@ -120,16 +136,40 @@ const Sound = (() => {
   }
  
   /* ---------- Music themes ---------- */
+  /* Спокійні теми власного авторства (без ліцензійних обмежень), у дусі саундтреків візуальних новел:
+     м'яке «фетрове» фортепіано, теплі струнні, жодних барабанів. Музика — фон, не головний акцент:
+     вона звучить лише в ключових сценах (див. карту звуку в story.js), решту часу — атмосфера локації.
+     8 тактів по 4 долі; chords — акорд на такт, bass — бас, mel — рідкісна мелодія, arp — малюнок арпеджіо (індекси нот акорду),
+     lead — інструмент мелодії (piano | nylon), pad — підкладка (strings | piano).
+     Ті самі дані рендерить scripts/export_audio.mjs у assets/music/*.mp3. */
   const THEMES = {
-    theme_main: { bpm: 88, wave: "triangle", mel: "A4 1|C5 1|F5 2|E5 1|D5 1|C5 2|D5 1|C5 1|A4 1|G4 1|A4 4|Bb4 1|D5 1|F5 2|E5 1|F5 1|G5 2|F5 1|E5 1|D5 1|E5 1|F5 4",
-      chords: ["F3 A3 C4", "C3 E3 G3", "D3 F3 A3", "F3 A3 C4", "Bb2 D3 F3", "C3 E3 G3", "Bb2 D3 G3", "F3 A3 C4"], bass: ["F2", "C2", "D2", "F2", "Bb1", "C2", "G2", "F2"] },
-    theme_triumph: { bpm: 104, wave: "square", mel: "A4 .5|C5 .5|F5 1|A5 2|G5 1|F5 1|E5 2|D5 1|C5 1|A4 1|C5 1|F5 4|Bb4 1|D5 1|F5 2|E5 1|F5 1|G5 2|A5 1|G5 1|E5 1|G5 1|F5 4",
-      chords: ["F3 A3 C4", "C3 E3 G3", "D3 F3 A3", "F3 A3 C4", "Bb2 D3 F3", "C3 E3 G3", "C3 E3 Bb3", "F3 A3 C4"], bass: ["F2", "C2", "D2", "F2", "Bb1", "C2", "C2", "F2"], drums: true },
-    theme_campus: { bpm: 116, wave: "triangle", pluck: true, mel: "G4 .5|B4 .5|D5 .5|B4 .5|C5 .5|E5 .5|D5 1|B4 .5|A4 .5|G4 .5|A4 .5|B4 2|E5 .5|D5 .5|C5 .5|B4 .5|A4 .5|B4 .5|C5 1|D5 3|R 1|G4 .5|B4 .5|D5 .5|G5 .5|F#5 .5|E5 .5|D5 1|C5 .5|B4 .5|A4 .5|B4 .5|C5 2|B4 .5|A4 .5|G4 .5|F#4 .5|A4 1|D5 1|G4 4",
-      chords: ["G3 B3 D4", "E3 G3 B3", "C3 E3 G3", "D3 F#3 A3", "G3 B3 D4", "C3 E3 G3", "D3 F#3 A3", "G3 B3 D4"], bass: ["G2", "E2", "C2", "D2", "G2", "C2", "D2", "G2"] },
-    theme_baroque: { bpm: 92, harpsi: true, mel: "A5 2|F5 2|G5 2|Bb5 2|A5 2|E5 2|F5 4|F5 2|D5 2|D5 2|G5 2|E5 2|C#5 2|D5 4",
-      arps: ["D4 F4 A4 D5 A4 F4 D4 F4", "G3 Bb3 D4 G4 D4 Bb3 G3 Bb3", "A3 C#4 E4 G4 E4 C#4 A3 C#4", "D4 F4 A4 D5 A4 F4 D4 A3", "Bb3 D4 F4 Bb4 F4 D4 Bb3 D4", "G3 Bb3 D4 G4 D4 Bb3 G3 D4", "A3 C#4 E4 A4 E4 C#4 A3 E4", "D4 F4 A4 D5 A4 F4 D4 F4"],
-      bass: ["D2", "G2", "A2", "D2", "Bb1", "G2", "A2", "D2"] }
+    // Титул: «Ласкаво просимо» — світле фортепіано, F-dur, лише прості мажорні тризвуки в середньому регістрі
+    // (F – C – Dm – B♭ – F – B♭ – C – F), без низького басу та напружених септакордів.
+    theme_main: { bpm: 66, lead: "piano", pad: "piano", arp: null,
+      chords: ["A3 C4 F4", "G3 C4 E4", "A3 D4 F4", "Bb3 D4 F4", "A3 C4 F4", "Bb3 D4 F4", "G3 C4 E4", "A3 C4 F4"],
+      bass: ["F2", "C3", "D3", "Bb2", "F2", "Bb2", "C3", "F2"],
+      mel: "C5 2|A4 1|C5 1|E5 2|D5 1|C5 1|D5 3|F5 1|F5 2|D5 2|C5 2|A4 1|F4 1|Bb4 2|D5 2|E5 2|D5 1|E5 1|F5 4" },
+    // «Перший день»: світле арпеджіо, G-dur — одноразово на прибутті та виборі СО, а також у титрах
+    theme_campus: { bpm: 72, lead: "piano", pad: "strings", arp: [0, 1, 2, 3, 2, 1, 2, 3],
+      chords: ["B3 D4 F#4 A4", "B3 D4 F#4 G4", "B3 D4 E4 G4", "A3 C4 E4 F#4", "A3 D4 E4 F#4", "G3 B3 D4 F#4", "G3 B3 C4 E4", "A3 C4 D4 G4"],
+      bass: ["G2", "E2", "C2", "D2", "B1", "E2", "A1", "D2"],
+      mel: "D5 2|B4 2|R 1|A4 1|B4 1|D5 1|E5 2|D5 2|A4 4|F#5 2|D5 2|B4 2|G4 2|C5 1|B4 1|A4 1|G4 1|A4 4" },
+    // Вечір, Сковорода, історія: нейлонова гітара + струнні, d-moll, «старовинний» колорит
+    theme_baroque: { bpm: 60, lead: "nylon", pad: "strings", arp: [0, 1, 2, 1, 2, 1, 0, 1],
+      chords: ["D3 F3 A3", "D3 F3 Bb3", "D3 G3 Bb3", "C#3 E3 A3", "D3 F3 A3", "C3 F3 A3", "C3 E3 G3", "C#3 G3 A3"],
+      bass: ["D2", "Bb1", "G1", "A1", "D2", "F2", "C2", "A1"],
+      mel: "A4 2|F4 1|D4 1|F4 2|D4 2|G4 1|Bb4 1|A4 1|G4 1|E4 4|F4 1|A4 1|D5 2|C5 2|A4 2|G4 1|E4 1|C4 1|E4 1|C#4 2|E4 1|A4 1" },
+    // Фінал / сертифікат: тепло й піднесено, фортепіано + струнні, C-dur
+    theme_triumph: { bpm: 70, lead: "piano", pad: "strings", arp: [0, 1, 2, 3, 2, 1, 2, 3],
+      chords: ["E3 G3 B3 D4", "D3 F#3 G3 B3", "E3 G3 B3 C4", "E3 G3 A3 C4", "E3 G3 B3 D4", "D3 F#3 G3 B3", "E3 G3 A3 C4", "D3 F3 G3 C4"],
+      bass: ["C2", "B1", "A1", "F2", "C2", "E2", "F2", "G2"],
+      mel: "E5 2|G5 2|D5 2|B4 2|C5 1|E5 1|G5 1|E5 1|F5 3|E5 1|E5 2|C5 2|B4 1|D5 1|G5 2|A5 2|G5 1|F5 1|G5 4" },
+    // Карта кампусу (глави 2 і 4): ненав'язлива лоу-фай музика — тепле електропіаніно, мʼякий свінг і ледь чутні барабани.
+    // Тільки мажорні акорди maj7/6/9 у середньому регістрі (без напруги), дуже тиха й під голос.
+    theme_lofi: { bpm: 68, lead: "ep", pad: "ep", arp: null, drums: 0, wow: true,
+      chords: ["D3 F3 A3 C4 E4", "G3 B3 E4 F4", "C3 E3 G3 B3 D4", "A2 E3 G3 C4 E4", "F3 A3 C4 E4", "E3 G3 B3 D4", "D3 F3 A3 C4 E4", "G3 B3 C4 F4"],
+      bass: ["D2", "G2", "C2", "A1", "F2", "E2", "D2", "G1"],
+      mel: "R 1|E5 1|D5 1|C5 1|A4 2|G4 1|A4 1|C5 3|D5 1|E5 2|D5 1|C5 1|R 1|G5 1|E5 1|D5 1|C5 2|D5 2|E5 2|D5 1|C5 1|A4 2|G4 2" }
   };
   function compile(th) {
     const ev = []; let beat = 0;
@@ -138,43 +178,73 @@ const Sound = (() => {
       if (n !== "R") ev.push({ b: beat, n: f(n), d: dur, v: "mel" });
       beat += dur;
     });
-    const len = Math.max(beat, 32);
-    const bars = 8, perBar = len / bars;
+    const bars = th.chords.length, perBar = 4, len = bars * perBar;
     for (let i = 0; i < bars; i++) {
-      const b0 = i * perBar;
-      if (th.bass) ev.push({ b: b0, n: f(th.bass[i]), d: perBar * 0.9, v: "bass" });
-      if (th.bass) ev.push({ b: b0 + perBar / 2, n: f(th.bass[i]) * 1.5, d: perBar * 0.4, v: "bass" });
-      if (th.chords) th.chords[i].split(" ").forEach(n => ev.push({ b: b0, n: f(n), d: perBar * 0.95, v: "pad" }));
-      if (th.arps) th.arps[i].split(" ").forEach((n, k) => ev.push({ b: b0 + k * perBar / 8, n: f(n), d: perBar / 8 * 1.6, v: "arp" }));
-      if (th.drums) for (let k = 0; k < 4; k++) ev.push({ b: b0 + k * perBar / 4, n: k % 2 ? 1 : 0, d: 0.1, v: "drum" });
+      const b0 = i * perBar, notes = th.chords[i].split(" ");
+      ev.push({ b: b0, n: f(th.bass[i]), d: perBar, v: "bass" });
+      notes.forEach(n => ev.push({ b: b0, n: f(n), d: perBar, v: "pad" }));
+      if (th.arp) th.arp.forEach((k, j) => ev.push({ b: b0 + j / 2, n: f(notes[k % notes.length]) * 2, d: 1, v: "arp" }));
     }
     ev.sort((a, b) => a.b - b.b);
     return { ev, len };
   }
+  // Резервний синтез (якщо mp3 недоступні): лише м'які синусоїди/трикутники, без різких хвиль і барабанів.
   function playEvent(th, e, t, spb) {
     const d = e.d * spb;
-    if (e.v === "mel") {
-      if (th.harpsi) pluck(e.n, t, Math.min(d * 1.2, 1.6), 0.13, musicBus, 3200);
-      else if (th.pluck) { pluck(e.n, t, Math.min(d * 1.3, 0.9), 0.12, musicBus, 2000); }
-      else { tone(e.n, t, d * 0.95, { type: th.wave, gain: 0.14, dest: musicBus, attack: 0.02, release: 0.15 }); if (th.wave === "square") tone(e.n / 2, t, d * 0.9, { type: "triangle", gain: 0.06, dest: musicBus }); }
-    } else if (e.v === "bass") tone(e.n, t, d, { type: "triangle", gain: 0.16, dest: musicBus, attack: 0.01, release: 0.1 });
-    else if (e.v === "pad") tone(e.n, t, d, { type: "sine", gain: 0.035, dest: musicBus, attack: 0.3, release: 0.4 });
-    else if (e.v === "arp") pluck(e.n, t, d, 0.07, musicBus, 2600);
-    else if (e.v === "drum") { if (e.n) noise(t, 0.12, { gain: 0.12, type: "highpass", freq: 2000, dest: musicBus }); else tone(110, t, 0.2, { gain: 0.3, slide: 0.4, dest: musicBus }); }
+    if (e.v === "mel") tone(e.n, t, d * 1.1, { type: "sine", gain: 0.09, dest: musicBus, attack: 0.04, release: d * 0.6 });
+    else if (e.v === "bass") tone(e.n, t, d, { type: "sine", gain: 0.1, dest: musicBus, attack: 0.08, release: d * 0.5 });
+    else if (e.v === "pad") tone(e.n, t, d, { type: "sine", gain: 0.025, dest: musicBus, attack: 0.6, release: 0.8 });
+    else if (e.v === "arp") tone(e.n, t, d * 1.5, { type: "triangle", gain: 0.03, dest: musicBus, attack: 0.01, release: d * 1.2 });
   }
  
-  function startMusic(name) {
+  /** startMusic(name) — фонова тема по колу; startMusic(name, {once:true}) — одноразова «музична фраза»:
+      грає один прохід і плавно стихає, далі сцена звучить лише атмосферою. */
+  function startMusic(name, opts) {
+    const once = !!(opts && opts.once);
     if (music && music.name === name) return;
     stopMusic();
-    music = { name };
+    music = { name, once };
     if (!enabled) return;
     init(); if (!ctx) return;
     const m = music;
+    // Спершу перевіряємо файл; синтез — лише якщо файлу немає (раніше грали обидва одночасно).
     probe("assets/music/" + name + ".mp3", ok => {
       if (music !== m) return;
-      if (ok) { stopSynth(m); m.el = loopFile("assets/music/" + name + ".mp3", 0.5); }
+      if (ok) {
+        m.el = once ? playFile("assets/music/" + name + ".mp3", 0) : loopFile("assets/music/" + name + ".mp3", 0);
+        fadeTo(m.el, musicVol(), 2500);
+        if (once && m.el) m.el.addEventListener("timeupdate", function tu() {
+          const el = m.el; if (!el || !el.duration) return;
+          if (el.duration - el.currentTime < 6) { el.removeEventListener("timeupdate", tu); if (music === m) stopMusic(5000); }
+        });
+      }
+      else if (!once) startSynth(m, name);
     });
-    const th = THEMES[name]; if (!th) return;
+  }
+  /** Зупиняє музику, якщо зараз не грає саме ця тема (щоб не обривати одноразову фразу при переході між сценами). */
+  function stopMusicExcept(name) { if (music && music.name !== name) stopMusic(); }
+  const MUSIC_VOL = 0.22, MUSIC_VOLS = { theme_lofi: 0.14 }; // лоу-фай на карті — ще тихіше, щоб не заважати
+  const DUCK_K = 0.36; // у скільки разів тихішає музика під час озвучки
+  let ducked = false;
+  function musicVol() { const base = (music && MUSIC_VOLS[music.name]) ?? MUSIC_VOL; return ducked ? base * DUCK_K : base; }
+  function fadeTo(el, vol, ms) {
+    if (!el) return;
+    clearInterval(el._fade);
+    const from = el.volume, t0 = performance.now();
+    el._fade = setInterval(() => {
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      el.volume = Math.max(0, Math.min(1, from + (vol - from) * k));
+      if (k >= 1) clearInterval(el._fade);
+    }, 50);
+  }
+  /** Приглушення музики, поки звучить озвучка (саму озвучку не змінює). */
+  function duck(on) {
+    if (ducked === on) return; ducked = on;
+    if (music && music.el) fadeTo(music.el, musicVol(), on ? 300 : 900);
+    if (ctx && musicBus) musicBus.gain.setTargetAtTime(on ? 0.1 : 0.25, ctx.currentTime, on ? 0.1 : 0.3);
+  }
+  function startSynth(m, name) {
+    const th = THEMES[name]; if (!th || !ctx) return;
     const c = compile(th), spb = 60 / th.bpm;
     let loopStart = ctx.currentTime + 0.1, idx = 0;
     m.timer = setInterval(() => {
@@ -191,51 +261,33 @@ const Sound = (() => {
     }, 60);
   }
   function stopSynth(m) { if (m && m.timer) { clearInterval(m.timer); m.timer = null; } }
-  function stopMusic() {
+  function stopMusic(ms = 1200) {
     if (!music) return;
     stopSynth(music);
-    if (music.el) { music.el.pause(); music.el = null; }
+    if (music.el) { const el = music.el; music.el = null; fadeTo(el, 0, ms); setTimeout(() => el.pause(), ms + 50); }
     music = null;
   }
  
   /* ---------- Ambience ---------- */
-  const AMB = {
-    yard: { base: { type: "bandpass", freq: 700, q: 0.6, gain: 0.05 }, every: 5.3, ev(t, k) { if (k % 2 === 0) { tone(380, t, 0.25, { type: "sine", gain: 0.05, dest: ambBus, slide: 0.85 }); tone(330, t + 0.3, 0.35, { type: "sine", gain: 0.05, dest: ambBus, slide: 0.9 }); } else noise(t, 0.3, { gain: 0.05, type: "bandpass", freq: 1800, q: 4, dest: ambBus }); } },
-    podil: { base: { type: "lowpass", freq: 260, q: 0.7, gain: 0.12 }, every: 7, ev(t, k) { if (k % 3 === 0) { tone(1046, t, 0.5, { type: "triangle", gain: 0.05, dest: ambBus }); tone(1046, t + 0.25, 0.6, { type: "triangle", gain: 0.05, dest: ambBus }); noise(t, 3, { gain: 0.06, type: "lowpass", freq: 180, dest: ambBus, attack: 1 }); } else for (let i = 0; i < 4; i++) noise(t + i * 0.4, 0.05, { gain: 0.04, type: "lowpass", freq: 600, dest: ambBus }); } },
-    office: { base: { type: "lowpass", freq: 400, q: 0.5, gain: 0.03 }, every: 2.1, ev(t, k) { if (k % 9 === 4) { for (let i = 0; i < 4; i++) { tone(880, t + i * 0.5, 0.18, { type: "square", gain: 0.03, dest: ambBus }); tone(1100, t + i * 0.5 + 0.09, 0.18, { type: "square", gain: 0.03, dest: ambBus }); } } else { const pat = [0, .12, .2, .37, .5, .58, .7, .9]; pat.forEach(p => noise(t + p, 0.03, { gain: 0.06, type: "bandpass", freq: 3000, q: 2, dest: ambBus })); } } },
-    library: { base: { type: "lowpass", freq: 300, q: 0.4, gain: 0.015 }, every: 6.5, ev(t) { noise(t, 0.5, { gain: 0.04, type: "highpass", freq: 3000, sweep: 0.6, attack: 0.1, dest: ambBus }); } },
-    evening: { base: { type: "bandpass", freq: 500, q: 0.5, gain: 0.025 }, every: 9, ev(t) { tone(523, t, 3, { type: "sine", gain: 0.03, dest: ambBus, attack: 0.01 }); tone(784, t, 3, { type: "sine", gain: 0.015, dest: ambBus, attack: 0.01 }); } }
-  };
+  /* Атмосфера — лише окремі події (птахи, кроки, клавіатура, сторінки, цвіркуни) з тишею між ними.
+     Жодних безперервних шумових підкладок: у грі вони звучали як постійне шипіння.
+     Якщо файл недоступний — просто тиша (синтетичний шум як резерв прибрано з тієї ж причини). */
+  const AMB_VOL = { yard: 0.3, podil: 0.25, office: 0.2, library: 0.15, evening: 0.25 };
   function startAmb(name) {
     if (amb && amb.name === name) return;
     stopAmb();
     amb = { name };
     if (!enabled || !name) return;
     init(); if (!ctx) return;
-    const a = AMB[name]; if (!a) return;
-    const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
-    const fl = ctx.createBiquadFilter(); fl.type = a.base.type; fl.frequency.value = a.base.freq; fl.Q.value = a.base.q;
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, ctx.currentTime); g.gain.exponentialRampToValueAtTime(a.base.gain, ctx.currentTime + 1.5);
-    s.connect(fl); fl.connect(g); g.connect(ambBus); s.start();
-    amb.src = s; amb.g = g;
-    let k = 0;
-    amb.timer = setInterval(() => { if (ctx) a.ev(ctx.currentTime + 0.05, k++); }, a.every * 1000);
     const current = amb, url = "assets/ambience/" + name + ".mp3";
     probe(url, ok => {
-      if (!ok || amb !== current) return;
-      if (current.timer) { clearInterval(current.timer); current.timer = null; }
-      if (current.src) {
-        try { current.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.12); current.src.stop(ctx.currentTime + 0.5); } catch (e) {}
-        current.src = null;
-      }
-      current.el = loopFile(url, 0.45);
+      if (amb !== current || !ok) return;
+      current.el = loopFile(url, 0); fadeTo(current.el, AMB_VOL[name] ?? 0.2, 2500);
     });
   }
   function stopAmb() {
     if (!amb) return;
-    if (amb.timer) clearInterval(amb.timer);
-    if (amb.src && ctx) { try { amb.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.3); amb.src.stop(ctx.currentTime + 1); } catch (e) {} }
-    if (amb.el) { amb.el.pause(); amb.el = null; }
+    if (amb.el) { const el = amb.el; amb.el = null; fadeTo(el, 0, 1500); setTimeout(() => el.pause(), 1550); }
     amb = null;
   }
  
@@ -247,7 +299,7 @@ const Sound = (() => {
     const fin = ok => { if (done) return; done = true; fileOk[url] = ok; cb(ok); };
     a.addEventListener("canplaythrough", () => fin(true), { once: true });
     a.addEventListener("error", () => fin(false), { once: true });
-    setTimeout(() => fin(false), 2500);
+    setTimeout(() => fin(false), 8000); // довше чекаємо на повільному інтернеті, перш ніж вмикати резервний синтез
     try { a.src = url; a.load(); } catch (e) { fin(false); }
   }
   function playFile(url, vol = 1) { try { const a = new Audio(url); a.volume = vol; a.play().catch(() => {}); return a; } catch (e) { return null; } }
@@ -269,13 +321,14 @@ const Sound = (() => {
       if (!ok || !enabled) { nextVoice(); return; }
       try {
         const a = new Audio(url); a.volume = 1; a._id = id; voiceEl = a;
+        a.onplaying = () => { if (tok === vtok) duck(true); };
         a.onended = () => { if (tok === vtok) nextVoice(); };
         a.play().catch(() => { if (tok === vtok) nextVoice(); });
       } catch (e) { nextVoice(); }
     });
   }
-  function nextVoice() { if (vq.length) playNow(vq.shift()); }
-  function stopVoice() { vq = []; pendingId = null; vtok++; if (voiceEl) { voiceEl.pause(); voiceEl = null; } }
+  function nextVoice() { if (vq.length) playNow(vq.shift()); else duck(false); }
+  function stopVoice() { vq = []; pendingId = null; vtok++; if (voiceEl) { voiceEl.pause(); voiceEl = null; } duck(false); }
   function voiceQueued(id) { return pendingId === id || vq.includes(id); }
   function hasVoice(id) { return fileOk["assets/voice/" + id + ".mp3"] === true; }
   function voiceState(id) { return fileOk["assets/voice/" + id + ".mp3"]; }
@@ -283,9 +336,10 @@ const Sound = (() => {
  
   function setEnabled(v) {
     enabled = v;
-    if (!v) { const m = music && music.name, a = amb && amb.name; stopMusic(); stopAmb(); stopVoice(); music = m ? { name: m, off: true } : null; amb = a ? { name: a, off: true } : null; }
+    // одноразову фразу після вимкнення звуку не відновлюємо — її момент уже минув
+    if (!v) { const m = music && !music.once && music.name, a = amb && amb.name; stopMusic(); stopAmb(); stopVoice(); music = m ? { name: m, off: true } : null; amb = a ? { name: a, off: true } : null; }
     else { init(); const m = music && music.name, a = amb && amb.name; music = null; amb = null; if (m) startMusic(m); if (a) startAmb(a); }
   }
-  return { init, sfx, blip, startMusic, stopMusic, startAmb, stopAmb, voice, stopVoice, hasVoice, voiceState, voiceAudio, voiceQueued, setEnabled, get enabled() { return enabled; }, tone, noise };
+  return { init, sfx, blip, startMusic, stopMusic, stopMusicExcept, startAmb, stopAmb, voice, stopVoice, hasVoice, voiceState, voiceAudio, voiceQueued, setEnabled, get enabled() { return enabled; }, tone, noise };
 })();
  
