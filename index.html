@@ -2265,7 +2265,15 @@ const MapView = (() => {
   const blocked = mapBlocked;
 
   function cellCenter(cx, cy) { return { x: cx * GRID + GRID / 2, y: cy * GRID + GRID / 2 }; }
-  function nearestWalkableCell(x, y) {
+  function canWalkBetween(from, to) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y)));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      if (blocked(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t)) return false;
+    }
+    return true;
+  }
+  function nearestWalkableCell(x, y, connect = false) {
     const cols = Math.ceil(W / GRID), rows = Math.ceil(H / GRID);
     const sx = Math.max(0, Math.min(cols - 1, Math.floor(x / GRID)));
     const sy = Math.max(0, Math.min(rows - 1, Math.floor(y / GRID)));
@@ -2275,7 +2283,7 @@ const MapView = (() => {
         const cx = sx + dx, cy = sy + dy;
         if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) continue;
         const p = cellCenter(cx, cy);
-        if (!blocked(p.x, p.y)) return { cx, cy };
+        if (!blocked(p.x, p.y) && (!connect || canWalkBetween({ x, y }, p))) return { cx, cy };
       }
     }
     return null;
@@ -2284,8 +2292,8 @@ const MapView = (() => {
   // A* для кліку по карті: персонаж обходить корпуси, а не впирається в них.
   function findPath(from, to) {
     const cols = Math.ceil(W / GRID), rows = Math.ceil(H / GRID);
-    const start = nearestWalkableCell(from.x, from.y);
-    const goal = nearestWalkableCell(to.x, to.y);
+    const start = nearestWalkableCell(from.x, from.y, !blocked(from.x, from.y));
+    const goal = nearestWalkableCell(to.x, to.y, !blocked(to.x, to.y));
     if (!start || !goal) return [];
     const key = (x, y) => y * cols + x;
     const point = id => ({ cx: id % cols, cy: Math.floor(id / cols) });
@@ -2307,10 +2315,12 @@ const MapView = (() => {
       if (closed[current]) continue; closed[current] = 1;
       if (current === goalId) { found = true; break; }
       const c = point(current);
+      const center = cellCenter(c.cx, c.cy);
       for (const [dx, dy, cost] of dirs) {
         const nx = c.cx + dx, ny = c.cy + dy;
         if (!free(nx, ny)) continue;
         if (dx && dy && (!free(c.cx + dx, c.cy) || !free(c.cx, c.cy + dy))) continue;
+        if (!canWalkBetween(center, cellCenter(nx, ny))) continue;
         const nid = key(nx, ny), tentative = gScore.get(current) + cost;
         if (tentative < (gScore.get(nid) ?? Infinity)) {
           came.set(nid, current); gScore.set(nid, tentative);
@@ -2375,7 +2385,7 @@ const MapView = (() => {
     if (dx || dy) { path = []; target = null; autoEnter = null; }
     else if (!uiBusy && path.length) {
       const wp = path[0], vx = wp.x - hero.x, vy = wp.y - hero.y, d = Math.hypot(vx, vy);
-      if (d <= Math.max(5, 220 * dt)) {
+      if (d <= 170 * dt) {
         hero.x = wp.x; hero.y = wp.y; path.shift();
         if (!path.length && autoEnter) { const id = autoEnter; autoEnter = null; target = null; enter(id); }
       } else { dx = vx / d; dy = vy / d; }
@@ -2384,8 +2394,13 @@ const MapView = (() => {
     if (hero.moving) {
       const len = Math.hypot(dx, dy), sp = (path.length ? 170 : 160) * dt;
       const nx = hero.x + dx / len * sp, ny = hero.y + dy / len * sp;
-      if (!blocked(nx, hero.y)) hero.x = nx;
-      if (!blocked(hero.x, ny)) hero.y = ny;
+      if (path.length) {
+        // Рухаємося тим самим відрізком, який перевірив пошук маршруту.
+        if (!blocked(nx, ny)) { hero.x = nx; hero.y = ny; }
+      } else {
+        if (!blocked(nx, hero.y)) hero.x = nx;
+        if (!blocked(hero.x, ny)) hero.y = ny;
+      }
       hero.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
       hero.phase += dt * 14;
     }
